@@ -154,10 +154,11 @@ def posalji_poruku():
     subject = f"[Kontakt sa sajta] {ime or 'Anonimno'} — {now.strftime('%d.%m.%Y %H:%M')}"
     body = (
         f"Ime i prezime: {ime or '—'}\n"
-        f"Kontakt: {kontakt or '—'}\n"             # NOVO
-        f"IP: {request.remote_addr}\n"
+        f"Kontakt: {kontakt or '—'}\n\n"  
+        f"Poruka:\n{poruka}\n\n"
         f"Vrijeme: {now.isoformat()}\n\n"
-        f"Poruka:\n{poruka}\n"
+        f"IP: {request.remote_addr}\n"
+       
     )
 
     # 1) Arhiva u CSV
