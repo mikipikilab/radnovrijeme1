@@ -218,55 +218,58 @@ window.addEventListener("load", function () {
 
 
 
-  <!-- Kontakt forma -->
-  <div class="contact-box">
-POŠALJITE PORUKU
-    <form id="msgForm">
-      <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
-      <textarea class="textarea" name="poruka" placeholder="Vaša poruka" rows="5" required></textarea>
-      <button class="btn" type="submit">Pošalji poruku</button>
-      <div id="msgStatus"></div>
-    </form>
-  </div>
+ <!-- Kontakt forma -->
+<div class="contact-box">
+  <div style="margin-bottom:8px;font-weight:700;">POŠALJITE PORUKU</div>
+  <form id="msgForm">
+    <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
+    <input class="input" type="text" name="kontakt" placeholder="Kontakt (telefon ili e-pošta, opcionalno)" />
+    <textarea class="textarea" name="poruka" placeholder="Vaša poruka" rows="5" required></textarea>
+    <button class="btn" type="submit">Pošalji poruku</button>
+    <div id="msgStatus"></div>
+  </form>
+</div>
+
      <!-- Akcije -->
   <div class="actions">
     <a href="/admin">Admin</a>
   </div>
 </div>
   <script>
-    const form = document.getElementById('msgForm');
-    const statusEl = document.getElementById('msgStatus');
+   const form = document.getElementById('msgForm');
+  const statusEl = document.getElementById('msgStatus');
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      statusEl.textContent = 'Šaljem...';
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    statusEl.textContent = 'Šaljem...';
 
-      const data = {
-        ime: form.ime.value.trim(),
-        poruka: form.poruka.value.trim()
-      };
-      if (!data.poruka) {
-        statusEl.textContent = 'Poruka je obavezna.';
-        return;
+    const data = {
+      ime: form.ime.value.trim(),
+      kontakt: (form.kontakt?.value || '').trim(),   // NOVO
+      poruka: form.poruka.value.trim()
+    };
+    if (!data.poruka) {
+      statusEl.textContent = 'Poruka je obavezna.';
+      return;
+    }
+
+    try {
+      const res = await fetch('/posalji_poruku', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      const out = await res.json();
+      if (out.ok) {
+        statusEl.textContent = out.warning ? ('Poslato. ⚠ ' + out.warning) : 'Poruka poslata. Hvala!';
+        form.reset();
+      } else {
+        statusEl.textContent = out.error || 'Greška pri slanju.';
       }
-
-      try {
-        const res = await fetch('/posalji_poruku', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(data)
-        });
-        const out = await res.json();
-        if (out.ok) {
-          statusEl.textContent = out.warning ? ('Poslato. ⚠ ' + out.warning) : 'Poruka poslata. Hvala!';
-          form.reset();
-        } else {
-          statusEl.textContent = out.error || 'Greška pri slanju.';
-        }
-      } catch (err) {
-        statusEl.textContent = 'Greška u mreži. Pokušajte ponovo.';
-      }
-    });
+    } catch (err) {
+      statusEl.textContent = 'Greška u mreži. Pokušajte ponovo.';
+    }
+  });
   </script>
 
 </body>
