@@ -139,12 +139,13 @@ def obrisi(datum):
         del posebni[datum]
         sacuvaj_posebne_datume(posebni)
     return redirect(url_for("admin"))
-# ---------------- NOVO: API za slanje poruke i arhivu u CSV ----------------
+# ---------------- API: slanje poruke + arhiva u CSV (sa "kontakt") ----------------
 @app.route("/posalji_poruku", methods=["POST"])
 def posalji_poruku():
     data = request.get_json(force=True, silent=True) or {}
-    ime = (data.get("ime") or "").strip()
-    poruka = (data.get("poruka") or "").strip()
+    ime     = (data.get("ime") or "").strip()
+    kontakt = (data.get("kontakt") or "").strip()   # NOVO
+    poruka  = (data.get("poruka") or "").strip()
 
     if not poruka:
         return jsonify(ok=False, error="Poruka je obavezna."), 400
@@ -153,6 +154,7 @@ def posalji_poruku():
     subject = f"[Kontakt sa sajta] {ime or 'Anonimno'} — {now.strftime('%d.%m.%Y %H:%M')}"
     body = (
         f"Ime i prezime: {ime or '—'}\n"
+        f"Kontakt: {kontakt or '—'}\n"             # NOVO
         f"IP: {request.remote_addr}\n"
         f"Vrijeme: {now.isoformat()}\n\n"
         f"Poruka:\n{poruka}\n"
@@ -167,15 +169,14 @@ def posalji_poruku():
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             if newfile:
-                w.writerow(["datetime", "ime", "ip", "poruka"])
-            w.writerow([now.isoformat(), ime, request.remote_addr, poruka])
-    except Exception as e:
-        # možeš i logovati: print(f"CSV error: {e}", flush=True)
-        pass
+                w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])  # NOVO polje
+            w.writerow([now.isoformat(), ime, kontakt, request.remote_addr, poruka])
+    except Exception:
+        pass  # ako CSV padne, i dalje pokušavamo da pošaljemo mail
 
-    # 2) Slanje email-a preko Gmail SMTP (samo ako su env varijable postavljene)
-    user = os.environ.get("GMAIL_USER")
-    app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")  # App password bez razmaka
+    # 2) Slanje email-a (env varijable)
+    user  = os.environ.get("GMAIL_USER")
+    app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
 
     if not user or not app_pw:
         return jsonify(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
@@ -194,9 +195,8 @@ def posalji_poruku():
 
         return jsonify(ok=True), 200
     except Exception as e:
-        # CSV je sačuvan; mail nije prošao
         return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
