@@ -31,10 +31,10 @@ body {
 /* status slika neka poštuje širinu kontejnera */
 .status-img {
   display: block;
-  width: 100%;               /* zauzmi širinu kontejnera */
+  width: 80%;               /* zauzmi širinu kontejnera */
   max-width: 560px;          /* ali ne šire od ovoga */
   height: auto;
-  margin: 10px auto 18px;
+  margin: 1px auto 8px;
   transform-origin: top center;
   animation: swing 2s ease-in-out infinite;
 }
@@ -76,9 +76,11 @@ body {
     border-radius: 14px;
     padding: 4px 8px;
     box-shadow: 0 6px 18px rgba(0,0,0,.06);
-    margin: 0 auto 26px;
-    font-size: 20px;
+    margin: 0 auto 6px;
+    font-size: 18px;
     font-weight: 800;
+       max-width: 100%;
+   margin-top: -10px;
   }
   .sep {
     opacity: .4;
@@ -214,19 +216,21 @@ window.addEventListener("load", function () {
     <div><span id="vreme"></span></div>
   </div>
 
-  <!-- Akcije -->
-  <div class="actions">
-    <a href="/admin">Admin</a>
-  </div>
+
 
   <!-- Kontakt forma -->
   <div class="contact-box">
+   pošaljite poruku
     <form id="msgForm">
       <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
       <textarea class="textarea" name="poruka" placeholder="Vaša poruka" rows="5" required></textarea>
       <button class="btn" type="submit">Pošalji poruku</button>
       <div id="msgStatus"></div>
     </form>
+  </div>
+     <!-- Akcije -->
+  <div class="actions">
+    <a href="/admin">Admin</a>
   </div>
 </div>
   <script>
