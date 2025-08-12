@@ -1,3 +1,1 @@
-Flask
-gunicorn
-tzdata
+web: gunicorn app:app
