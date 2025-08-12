@@ -1,8 +1,19 @@
 services:
   - type: web
-    name: radnovrijeme
+    name: dentalab-poruke
     env: python
-    plan: free
-    buildCommand: ""
+    region: frankfurt
+    plan: starter
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
-    autoDeploy: true
+    envVars:
+      - key: GMAIL_USER
+        sync: false      # unijećeš poslije u dashboardu
+      - key: GMAIL_APP_PASSWORD
+        sync: false      # unijećeš poslije u dashboardu (bez razmaka)
+      - key: CSV_PATH
+        value: /data/poruke.csv
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
