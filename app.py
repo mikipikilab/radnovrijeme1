@@ -193,22 +193,28 @@ def posalji_poruku():
 
     if not user or not app_pw:
         return jsonify(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
+try:
+    sender_name = "PORUKA SA VRATA"
 
-    try:
-        msg = EmailMessage()
-        msg["From"] = user
-        msg["To"] = "dentalabplaner@gmail.com"
-        msg["Subject"] = subject
-        msg.set_content(body)
+    msg = EmailMessage()
+    msg["From"] = formataddr((sender_name, user))  # "PORUKA SA VRATA <dentalabplaner@gmail.com>"
+    msg["To"] = "dentalabplaner@gmail.com"
+    msg["Subject"] = subject
+    msg.set_content(body)
 
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
-            smtp.login(user, app_pw)
-            smtp.send_message(msg)
+    # Ako je korisnik upisao e-mail u "kontakt", Reply-To na njega:
+    if kontakt and "@" in kontakt:
+        msg["Reply-To"] = kontakt
 
-        return jsonify(ok=True), 200
-    except Exception as e:
-        return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
+        smtp.login(user, app_pw)
+        smtp.send_message(msg)
+
+    return jsonify(ok=True), 200
+except Exception as e:
+    return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
+
 # -------------------------------------------------------------------------------
 
 # --- Pomoćne rute za CSV (opciono) ---
