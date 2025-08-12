@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Radno vrijeme ordinacije</title>
+<script src="https://code.responsivevoice.org/responsivevoice.js?key=J55NcMXq"></script>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: system-ui, Arial, sans-serif;
+    background: #f9fafb;
+    color: #111827;
+    margin: 0;
+    padding: 24px;
+    text-align: center; /* centriranje sadržaja */
+  }
+
+  .logo {
+    display: block;
+    max-width: 80%;
+    height: auto;
+    margin: 160px auto 20px;
+  }
+
+  /* Glavna poruka */
+  h1 {
+    font-size: 20px;
+    margin: 0 0 12px;
+    color: #111827;
+    letter-spacing: .4px;
+    font-weight: 700;
+  }
+
+  .sub {
+    color: white;
+    margin-bottom: 5px;
+    line-height: 1.2;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.05;
+  }
+
+  .meta {
+    display: flex;
+    justify-content: center;
+    gap: 36px;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 4px 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.06);
+    margin: 0 auto 26px;
+    font-size: clamp(2.5rem, 5vw, 3.5rem);
+    font-weight: 800;
+  }
+  .sep {
+    opacity: .4;
+    font-weight: 700;
+    font-size: 1.5em;
+  }
+
+  /* 🔊 dugme: gore lijevo, preko svega, poluprozirno */
+  button.speaker-btn {
+    position: absolute;     /* promijeni u fixed ako želiš da ostane pri skrolu */
+    top: 10px;
+    left: 10px;
+    padding: 14px 24px;
+    border-radius: 20px;
+    border: 2px solid rgba(255,255,255,0.6);
+    background: rgba(0,0,0,0.4);
+    cursor: pointer;
+    font-size: 3rem;
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    backdrop-filter: blur(4px);
+    transition: background 0.2s ease, color 0.2s ease;
+    z-index: 9999;
+  }
+  button.speaker-btn:hover {
+    background: rgba(0,0,0,0.6);
+  }
+
+  a {
+    color: #2563eb;
+    text-decoration: none;
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+  a:hover { text-decoration: underline; }
+
+  /* STATUS SLIKA (open/close) – veća + animacija njihanja */
+  .status-img {
+    display: block;
+    width: clamp(240px, 45vw, 560px);
+    height: auto;
+    margin: 10px auto 18px;
+    transform-origin: top center;
+    animation: swing 2s ease-in-out infinite;
+  }
+  @keyframes swing {
+    0%   { transform: rotate(-5deg); }
+    50%  { transform: rotate(5deg); }
+    100% { transform: rotate(-5deg); }
+  }
+
+  /* Kontakt kutija */
+  .contact-box { max-width:720px; margin:32px auto 0; padding:16px; }
+  .input, .textarea {
+    width:100%; padding:14px 12px; margin:0 0 10px;
+    border:1px solid #d1d5db; border-radius:12px; font-size:1rem;
+  }
+  .textarea { resize:vertical; }
+  .btn {
+    margin-top:10px; padding:12px 18px; border-radius:12px;
+    border:2px solid #d1d5db; background:#fff; cursor:pointer; font-weight:700;
+    box-shadow:0 4px 10px rgba(0,0,0,.06);
+  }
+  #msgStatus { margin-top:8px; font-size:.95rem; }
+</style>
+
+<script>
+function pad2(n){ return n<10 ? "0"+n : ""+n; }
+
+function azurirajVreme() {
+  const d = new Date();
+  const dan = d.getDate();
+  const mjesec = d.getMonth() + 1;
+  const godina = d.getFullYear().toString().slice(-2);
+  const dani = ['Nedjelja','Ponedjeljak','Utorak','Srijeda','Četvrtak','Petak','Subota'];
+
+  document.getElementById('datum').textContent = `${dan}.${mjesec}.${godina}.`;
+  document.getElementById('dan').textContent = dani[d.getDay()];
+  document.getElementById('vreme').textContent = `${d.getHours()}:${pad2(d.getMinutes())}`;
+}
+
+const MESSAGE_TTS = {{ poruka_tts|tojson }};
+
+function reallySpeak() {
+  const opts = { rate: 0.9, pitch: 1.0 };
+  return (
+    responsiveVoice.speak(MESSAGE_TTS, "Serbian Female", opts) ||
+    responsiveVoice.speak(MESSAGE_TTS, "Serbian Male", opts) ||
+    responsiveVoice.speak(MESSAGE_TTS, "Croatian Female", opts)
+  );
+}
+
+function speakMessage(retries = 10) {
+  if (window.responsiveVoice && responsiveVoice.voiceSupport()) {
+    const ok = reallySpeak();
+    if (ok === false && retries > 0) {
+      setTimeout(() => speakMessage(retries - 1), 300);
+    }
+  } else if (retries > 0) {
+    setTimeout(() => speakMessage(retries - 1), 300);
+  } else {
+    alert(MESSAGE_TTS);
+  }
+}
+
+window.addEventListener("load", function () {
+  azurirajVreme();
+  setInterval(azurirajVreme, 30000);
+
+  speakMessage();
+
+  document.body.addEventListener("click", function handler() {
+    speakMessage();
+    document.body.removeEventListener("click", handler);
+  });
+});
+</script>
+</head>
+<body>
+
+  <!-- 🔊 -->
+  <button class="speaker-btn" type="button" aria-label="Pusti poruku" onclick="speakMessage()">🔊</button>
+
+  <!-- Status slika -->
+  <img src="{{ url_for('static', filename=status_slika) }}"
+       alt="Status ordinacije"
+       class="status-img"
+       loading="lazy">
+
+  <!-- Poruka -->
+  <h1>{{ poruka_upper|safe }}</h1>
+  <div class="sub">{{ poruka|safe }}</div>
+
+  <!-- Meta podaci -->
+  <div class="meta">
+    <div><span id="datum"></span></div>
+    <div class="sep">•</div>
+    <div><span id="dan"></span></div>
+    <div class="sep">•</div>
+    <div><span id="vreme"></span></div>
+  </div>
+
+  <!-- Akcije -->
+  <div class="actions">
+    <a href="/admin">Admin</a>
+  </div>
+
+  <!-- Kontakt forma -->
+  <div class="contact-box">
+    <form id="msgForm">
+      <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
+      <textarea class="textarea" name="poruka" placeholder="Vaša poruka" rows="5" required></textarea>
+      <button class="btn" type="submit">Pošalji poruku</button>
+      <div id="msgStatus"></div>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('msgForm');
+    const statusEl = document.getElementById('msgStatus');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusEl.textContent = 'Šaljem...';
+
+      const data = {
+        ime: form.ime.value.trim(),
+        poruka: form.poruka.value.trim()
+      };
+      if (!data.poruka) {
+        statusEl.textContent = 'Poruka je obavezna.';
+        return;
+      }
+
+      try {
+        const res = await fetch('/posalji_poruku', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        const out = await res.json();
+        if (out.ok) {
+          statusEl.textContent = out.warning ? ('Poslato. ⚠ ' + out.warning) : 'Poruka poslata. Hvala!';
+          form.reset();
+        } else {
+          statusEl.textContent = out.error || 'Greška pri slanju.';
+        }
+      } catch (err) {
+        statusEl.textContent = 'Greška u mreži. Pokušajte ponovo.';
+      }
+    });
+  </script>
+
+</body>
+</html>

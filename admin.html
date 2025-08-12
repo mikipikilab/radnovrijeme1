@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<title>Admin – posebni datumi</title>
+<style>
+  body { font-family: system-ui, Arial, sans-serif; padding: 24px; max-width: 720px; margin: auto; }
+  form, table { margin-top: 16px; }
+  input, button { padding: 8px 10px; border-radius: 8px; border: 1px solid #e5e7eb; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
+  a.btn { text-decoration: none; padding: 6px 10px; border: 1px solid #e11d48; color: #e11d48; border-radius: 8px; }
+  .row { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+  label { display:flex; flex-direction:column; gap:6px; }
+</style>
+<script>
+function toggleNeradni(chk){
+  const s = document.getElementById('start');
+  const e = document.getElementById('end');
+  if(chk.checked){
+    s.disabled = true; e.disabled = true;
+    s.removeAttribute('required'); e.removeAttribute('required');
+    s.value = ""; e.value = "";
+  }else{
+    s.disabled = false; e.disabled = false;
+  }
+}
+</script>
+</head>
+<body>
+  <h2>Admin – posebni datumi</h2>
+
+  <form method="POST" class="row">
+    <label>Datum
+      <input type="date" name="datum" required>
+    </label>
+
+    <label>
+      <input type="checkbox" name="neradni" id="neradni" onchange="toggleNeradni(this)">
+      Neradni dan
+    </label>
+
+    <label>Start (sat)
+      <input type="number" id="start" name="start" min="0" max="23" placeholder="npr. 10">
+    </label>
+
+    <label>End (sat)
+      <input type="number" id="end" name="end" min="1" max="24" placeholder="npr. 20">
+    </label>
+
+    <button type="submit">Sačuvaj</button>
+  </form>
+
+  <h3>Postojeći zapisi</h3>
+  <table>
+    <thead><tr><th>Datum</th><th>Start</th><th>End</th><th></th></tr></thead>
+    <tbody>
+      {% for d, se in posebni.items() %}
+      <tr>
+        <td>{{ d }}</td>
+        <td>{{ se[0] if se[0] is not none else '—' }}</td>
+        <td>{{ se[1] if se[1] is not none else '—' }}</td>
+        <td><a class="btn" href="{{ url_for('obrisi', datum=d) }}">Obriši</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">Nema posebnih datuma.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p><a href="/">← Nazad</a></p>
+</body>
+</html>
