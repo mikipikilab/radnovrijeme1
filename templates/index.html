@@ -34,7 +34,7 @@ body {
   width: 80%;               /* zauzmi širinu kontejnera */
   max-width: 560px;          /* ali ne šire od ovoga */
   height: auto;
-  margin: 1px auto 8px;
+  margin: -10px auto 8px;
   transform-origin: top center;
   animation: swing 2s ease-in-out infinite;
 }
@@ -45,7 +45,7 @@ body {
     display: block;
     max-width: 80%;
     height: auto;
-    margin: 160px auto 20px;
+   
   }
 
   /* Glavna poruka */
@@ -126,7 +126,7 @@ body {
   }
 
   /* Kontakt kutija */
-  .contact-box { max-width:720px; margin:32px auto 0; padding:16px; }
+  .contact-box { max-width:720px; margin:1px auto 0; padding:16px; }
   .input, .textarea {
     width:100%; padding:14px 12px; margin:0 0 10px;
     border:1px solid #d1d5db; border-radius:12px; font-size:1rem;
@@ -220,7 +220,7 @@ window.addEventListener("load", function () {
 
   <!-- Kontakt forma -->
   <div class="contact-box">
-   pošaljite poruku
+POŠALJITE PORUKU
     <form id="msgForm">
       <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
       <textarea class="textarea" name="poruka" placeholder="Vaša poruka" rows="5" required></textarea>
