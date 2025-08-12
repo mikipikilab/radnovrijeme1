@@ -1,0 +1,7 @@
+instance/
+*.csv
+data.json
+__pycache__/
+.env
+.vscode/
+.idea/
