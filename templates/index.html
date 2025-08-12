@@ -6,15 +6,40 @@
 <title>Radno vrijeme ordinacije</title>
 <script src="https://code.responsivevoice.org/responsivevoice.js?key=J55NcMXq"></script>
 <style>
-  :root { color-scheme: light; }
-  body {
-    font-family: system-ui, Arial, sans-serif;
-    background: #f9fafb;
-    color: #111827;
-    margin: 0;
-    padding: 24px;
-    text-align: center; /* centriranje sadržaja */
-  }
+ :root { 
+  color-scheme: light; 
+  --page-width: 900px; /* ovdje mijenjaš maksimalnu širinu stranice */
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: system-ui, Arial, sans-serif;
+  background: #f9fafb;
+  color: #111827;
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+}
+
+/* Glavni kontejner koji drži SAV sadržaj u okviru body-ja */
+.page {
+  width: min(100%, var(--page-width));
+  margin-inline: auto;       /* centrirano */
+}
+
+/* status slika neka poštuje širinu kontejnera */
+.status-img {
+  display: block;
+  width: 100%;               /* zauzmi širinu kontejnera */
+  max-width: 560px;          /* ali ne šire od ovoga */
+  height: auto;
+  margin: 10px auto 18px;
+  transform-origin: top center;
+  animation: swing 2s ease-in-out infinite;
+}
+
+/* ostalo može ostati isto … */
 
   .logo {
     display: block;
@@ -91,15 +116,7 @@
   }
   a:hover { text-decoration: underline; }
 
-  /* STATUS SLIKA (open/close) – veća + animacija njihanja */
-  .status-img {
-    display: block;
-    width: clamp(240px, 45vw, 560px);
-    height: auto;
-    margin: 10px auto 18px;
-    transform-origin: top center;
-    animation: swing 2s ease-in-out infinite;
-  }
+ 
   @keyframes swing {
     0%   { transform: rotate(-5deg); }
     50%  { transform: rotate(5deg); }
@@ -174,7 +191,7 @@ window.addEventListener("load", function () {
 </script>
 </head>
 <body>
-
+  <div class="page">
   <!-- 🔊 -->
   <button class="speaker-btn" type="button" aria-label="Pusti poruku" onclick="speakMessage()">🔊</button>
 
@@ -211,7 +228,7 @@ window.addEventListener("load", function () {
       <div id="msgStatus"></div>
     </form>
   </div>
-
+</div>
   <script>
     const form = document.getElementById('msgForm');
     const statusEl = document.getElementById('msgStatus');
