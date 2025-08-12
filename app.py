@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, abort
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from email.utils import formataddr
+
 import json, os
 # NOVO:
 import smtplib, ssl, csv
@@ -154,19 +156,18 @@ def obrisi(datum):
         sacuvaj_posebne_datume(posebni)
     return redirect(url_for("admin"))
 
-# ---------------- API: slanje poruke + arhiva u CSV (sa "kontakt") ----------------
 @app.route("/posalji_poruku", methods=["POST"])
 def posalji_poruku():
     data = request.get_json(force=True, silent=True) or {}
     ime     = (data.get("ime") or "").strip()
-    kontakt = (data.get("kontakt") or "").strip()   # NOVO
+    kontakt = (data.get("kontakt") or "").strip()
     poruka  = (data.get("poruka") or "").strip()
 
     if not poruka:
         return jsonify(ok=False, error="Poruka je obavezna."), 400
 
     now = now_podgorica()
-    subject = f"[Kontakt sa sajta] {ime or 'Anonimno'} — {now.strftime('%d.%m.%Y %H:%M')}"
+
     body = (
         f"Ime i prezime: {ime or '—'}\n"
         f"Kontakt: {kontakt or '—'}\n\n"
@@ -181,7 +182,7 @@ def posalji_poruku():
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             if newfile:
-                w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])  # header
+                w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])
             w.writerow([now.isoformat(), ime, kontakt, request.remote_addr, poruka])
     except Exception as e:
         print(f"CSV write error: {e}", flush=True)
@@ -193,29 +194,28 @@ def posalji_poruku():
 
     if not user or not app_pw:
         return jsonify(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
-try:
-    sender_name = "PORUKA SA VRATA"
 
-    msg = EmailMessage()
-    msg["From"] = formataddr((sender_name, user))  # "PORUKA SA VRATA <dentalabplaner@gmail.com>"
-    msg["To"] = "dentalabplaner@gmail.com"
-    msg["Subject"] = subject
-    msg.set_content(body)
+    try:
+        msg = EmailMessage()
+        msg["From"] = formataddr(("PORUKA SA VRATA", user))  # npr. "PORUKA SA VRATA <dentalabplaner@gmail.com>"
+        msg["To"] = "dentalabplaner@gmail.com"
+        msg["Subject"] = f"[Kontakt sa sajta] {ime or 'Anonimno'} — {now.strftime('%d.%m.%Y %H:%M')}"
+        msg.set_content(body)
 
-    # Ako je korisnik upisao e-mail u "kontakt", Reply-To na njega:
-    if kontakt and "@" in kontakt:
-        msg["Reply-To"] = kontakt
+        # Ako je korisnik upisao e-mail u "kontakt", Reply-To na njega:
+        if kontakt and "@" in kontakt:
+            msg["Reply-To"] = kontakt
 
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
-        smtp.login(user, app_pw)
-        smtp.send_message(msg)
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
+            smtp.login(user, app_pw)
+            smtp.send_message(msg)
+
+    except Exception as e:
+        print(f"Mail error: {e}", flush=True)
+        return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
 
     return jsonify(ok=True), 200
-except Exception as e:
-    return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
-
-# -------------------------------------------------------------------------------
 
 # --- Pomoćne rute za CSV (opciono) ---
 @app.get("/csv_debug")
