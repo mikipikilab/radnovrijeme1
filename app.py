@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, abort
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import json, os
@@ -10,6 +10,20 @@ app = Flask(__name__, template_folder="templates")
 
 # --- podesiva putanja za CSV (na Renderu koristi /data/poruke.csv) ---
 CSV_PATH = os.environ.get("CSV_PATH") or os.path.join(app.instance_path, "poruke.csv")
+
+# --- CSV init: napravi fajl sa headerom ako ne postoji ---
+def ensure_csv():
+    try:
+        dirpath = os.path.dirname(CSV_PATH)
+        if dirpath:
+            os.makedirs(dirpath, exist_ok=True)
+        if not os.path.exists(CSV_PATH):
+            with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
+                csv.writer(f).writerow(["datetime", "ime", "kontakt", "ip", "poruka"])
+    except Exception as e:
+        print(f"CSV init error: {e}", flush=True)
+
+ensure_csv()
 
 # Dodaj posebna pravila za utorak i subotu
 RADNO_VRIJEME = {
@@ -139,6 +153,7 @@ def obrisi(datum):
         del posebni[datum]
         sacuvaj_posebne_datume(posebni)
     return redirect(url_for("admin"))
+
 # ---------------- API: slanje poruke + arhiva u CSV (sa "kontakt") ----------------
 @app.route("/posalji_poruku", methods=["POST"])
 def posalji_poruku():
@@ -154,29 +169,26 @@ def posalji_poruku():
     subject = f"[Kontakt sa sajta] {ime or 'Anonimno'} — {now.strftime('%d.%m.%Y %H:%M')}"
     body = (
         f"Ime i prezime: {ime or '—'}\n"
-        f"Kontakt: {kontakt or '—'}\n\n"  
+        f"Kontakt: {kontakt or '—'}\n\n"
         f"Poruka:\n{poruka}\n\n"
-        f"Vrijeme: {now.isoformat()}\n\n"
+        f"Vrijeme: {now.isoformat()}\n"
         f"IP: {request.remote_addr}\n"
-       
     )
 
     # 1) Arhiva u CSV
     try:
-        dirpath = os.path.dirname(CSV_PATH)
-        if dirpath:
-            os.makedirs(dirpath, exist_ok=True)
         newfile = not os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             if newfile:
-                w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])  # NOVO polje
+                w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])  # header
             w.writerow([now.isoformat(), ime, kontakt, request.remote_addr, poruka])
-    except Exception:
-        pass  # ako CSV padne, i dalje pokušavamo da pošaljemo mail
+    except Exception as e:
+        print(f"CSV write error: {e}", flush=True)
+        # nastavljamo na slanje maila
 
     # 2) Slanje email-a (env varijable)
-    user  = os.environ.get("GMAIL_USER")
+    user   = os.environ.get("GMAIL_USER")
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
 
     if not user or not app_pw:
@@ -199,6 +211,18 @@ def posalji_poruku():
         return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
 # -------------------------------------------------------------------------------
 
+# --- Pomoćne rute za CSV (opciono) ---
+@app.get("/csv_debug")
+def csv_debug():
+    exists = os.path.exists(CSV_PATH)
+    size = os.path.getsize(CSV_PATH) if exists else 0
+    return jsonify(path=CSV_PATH, exists=exists, size=size)
+
+@app.get("/poruke.csv")
+def download_csv():
+    if not os.path.exists(CSV_PATH):
+        abort(404)
+    return send_file(CSV_PATH, as_attachment=True, download_name="poruke.csv")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5098))
