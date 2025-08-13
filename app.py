@@ -68,7 +68,7 @@ def to_int_or_none(x):
 
 def sat_label(h):
     try:
-        if isinstance(h, float) and not h.is_integer():
+         isinstance(h, float) and not h.is_integer():
             sati = int(h)
             minuti = int((h - sati) * 60)
             return f"{sati}:{minuti:02d}"
@@ -83,7 +83,7 @@ def index():
     ime_dana = DANI_PUNIM[dan].lower()
 
     sv = RADNO_VRIJEME.get(ime_dana)
-    if sv is None:
+     sv is None:
         start, end = None, None
     else:
         start, end = sv["start"], sv["end"]
@@ -91,19 +91,19 @@ def index():
     posebni = ucitaj_posebne_datume()
     datum_str = sada.strftime("%Y-%m-%d")
     ps = posebni.get(datum_str)
-    if isinstance(ps, (list, tuple)) and len(ps) == 2:
-        start = ps[0] if ps[0] is not None else None
-        end   = ps[1] if ps[1] is not None else None
+     isinstance(ps, (list, tuple)) and len(ps) == 2:
+        start = ps[0]  ps[0] is not None else None
+        end   = ps[1]  ps[1] is not None else None
 
     # odredi status i poruku
-    if start is None or end is None:
+     start is None or end is None:
         poruka_html = "Danas je neradni dan."
         poruka_tts  = "Danas je neradni dan."
         status_slika = "close1.png"
     else:
         sat = sada.hour + sada.minute / 60
         otvoreno_sad = (start <= sat < end)
-        if otvoreno_sad:
+         otvoreno_sad:
             linije = [
                 "Ordinacija je trenutno otvorena.",
                 f"Danas je radno vrijeme od {sat_label(start)} do {sat_label(end)} časova."
@@ -132,14 +132,14 @@ def index():
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     posebni = ucitaj_posebne_datume()
-    if request.method == "POST":
+     request.method == "POST":
         datum = request.form["datum"].strip()
-        if "neradni" in request.form:
+         "neradni" in request.form:
             start = end = None
         else:
             start = to_int_or_none(request.form.get("start"))
             end   = to_int_or_none(request.form.get("end"))
-            if start is None or end is None:
+             start is None or end is None:
                 start = end = None
         posebni[datum] = [start, end]
         sacuvaj_posebne_datume(posebni)
@@ -151,7 +151,7 @@ def admin():
 @app.route("/obrisi/<datum>")
 def obrisi(datum):
     posebni = ucitaj_posebne_datume()
-    if datum in posebni:
+     datum in posebni:
         del posebni[datum]
         sacuvaj_posebne_datume(posebni)
     return redirect(url_for("admin"))
@@ -163,8 +163,8 @@ def posalji_poruku():
     kontakt = (data.get("kontakt") or "").strip()
     poruka  = (data.get("poruka") or "").strip()
 
-    if not poruka:
-        return jsonify(ok=False, error="Poruka je obavezna."), 400
+     not poruka:
+        return jsony(ok=False, error="Poruka je obavezna."), 400
 
     now = now_podgorica()
 
@@ -181,7 +181,7 @@ def posalji_poruku():
         newfile = not os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            if newfile:
+             newfile:
                 w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])
             w.writerow([now.isoformat(), ime, kontakt, request.remote_addr, poruka])
     except Exception as e:
@@ -192,8 +192,8 @@ def posalji_poruku():
     user   = os.environ.get("GMAIL_USER")
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
 
-    if not user or not app_pw:
-        return jsonify(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
+     not user or not app_pw:
+        return jsony(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
 
     try:
         msg = EmailMessage()
@@ -229,6 +229,9 @@ def download_csv():
     if not os.path.exists(CSV_PATH):
         abort(404)
     return send_file(CSV_PATH, as_attachment=True, download_name="poruke.csv")
+@app.get("/ping")
+def ping():
+    return "ok", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5098))
