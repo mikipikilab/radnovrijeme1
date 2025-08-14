@@ -533,27 +533,28 @@ flatpickr("#dt", {{
     when_txt = dt_local.strftime("%d.%m.%Y u %H:%M")
 
     # ICS link
+    maps_link = "https://maps.app.goo.gl/6L27g5GLfUGxs2fD8"
     ics_qs = urllib.parse.urlencode({
-        "title": f"Termin — {ime or 'Pacijent'}",
-        "start": dt_local.strftime("%Y-%m-%d %H:%M"),
-        "dur": duration_min,
-        "details": napomena or "",
-        "loc": "Dentalab, Podgorica"
-    })
+    "title": f"Termin — {ime or 'Pacijent'}",
+    "start": dt_local.strftime("%Y-%m-%d %H:%M"),
+    "dur": duration_min,
+    "details": napomena or "",
+    "loc": maps_link
+     })
     ics_url = request.url_root.rstrip("/") + "/event.ics?" + ics_qs
 
-    # Google Calendar link
-    start_utc = dt_local.astimezone(ZoneInfo("UTC"))
-    end_utc = (dt_local + timedelta(minutes=duration_min)).astimezone(ZoneInfo("UTC"))
-    gcal_qs = urllib.parse.urlencode({
-        "action": "TEMPLATE",
-        "text": f"Termin — {ime or 'Pacijent'}",
-        "dates": f"{start_utc.strftime('%Y%m%dT%H%M%SZ')}/{end_utc.strftime('%Y%m%dT%H%M%SZ')}",
-        "details": napomena or "",
-        "location": "Dentalab, Podgorica",
-        "ctz": "Europe/Podgorica"
-    })
-    google_url = f"https://calendar.google.com/calendar/render?{gcal_qs}"
+   # Google Calendar link
+   start_utc = dt_local.astimezone(ZoneInfo("UTC"))
+   end_utc = (dt_local + timedelta(minutes=duration_min)).astimezone(ZoneInfo("UTC"))
+   gcal_qs = urllib.parse.urlencode({
+    "action": "TEMPLATE",
+    "text": f"Termin — {ime or 'Pacijent'}",
+    "dates": f"{start_utc.strftime('%Y%m%dT%H%M%SZ')}/{end_utc.strftime('%Y%m%dT%H%M%SZ')}",
+    "details": napomena or "",
+    "location": maps_link,
+    "ctz": "Europe/Podgorica"
+})
+google_url = f"https://calendar.google.com/calendar/render?{gcal_qs}"
 
     # Tekst i HTML maila
     body_txt = (
@@ -587,7 +588,7 @@ flatpickr("#dt", {{
         return "Mail nije konfigurisan.", 200
 
     ics_text = build_ics(
-        summary=f"Termin — {ime or 'Pacijent'}",
+        summary=f"Termin kod stomatologa {ime or 'Pacijent'}",
         dt_local=dt_local,
         duration_min=duration_min,
         description=napomena or "",
@@ -601,7 +602,7 @@ flatpickr("#dt", {{
         if email:
             msg["Cc"] = email
             msg["Reply-To"] = email
-        msg["Subject"] = f"{ime or 'Pacijent'}, Vaš termin je zakazan — {when_txt}"
+        msg["Subject"] = f"{ime or 'Pacijent'}, Vaš termin je zakazan {when_txt}"
         msg.set_content(body_txt)
         msg.add_alternative(body_html, subtype="html")
         msg.add_attachment(ics_text.encode("utf-8"), maintype="text", subtype="calendar", filename="termin.ics")
