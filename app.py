@@ -27,15 +27,15 @@ def ensure_csv():
 
 ensure_csv()
 
-# Dodaj posebna pravila za utorak i subotu
+# Default radno vrijeme
 RADNO_VRIJEME = {
     "ponedjeljak": {"start": 10, "end": 20},
-    "utorak": {"start": 10, "end": 20},
-    "srijeda": {"start": 10, "end": 20},
-    "četvrtak": {"start": 10, "end": 20},
-    "petak": {"start": 10, "end": 20},
-    "subota": {"start": 10, "end": 14},
-    "nedjelja": None
+    "utorak":      {"start": 10, "end": 20},
+    "srijeda":     {"start": 10, "end": 20},
+    "četvrtak":    {"start": 10, "end": 20},
+    "petak":       {"start": 10, "end": 20},
+    "subota":      {"start": 10, "end": 14},
+    "nedjelja":    None
 }
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -52,7 +52,11 @@ def now_podgorica():
 def ucitaj_posebne_datume():
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            # očekujemo dict: {"YYYY-MM-DD": [start, end] ili [null, null]}
+            if isinstance(data, dict):
+                return data
+            return {}
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
@@ -62,48 +66,64 @@ def sacuvaj_posebne_datume(data):
 
 def to_int_or_none(x):
     try:
+        # dozvoli i decimalu ako neko unese "10.5" → zaokruži ili vrati int?
+        # zadržavamo int, admin forma neka šalje cijele sate; decimalna podrška ide kroz data.json
         return int(x)
     except (ValueError, TypeError):
         return None
 
 def sat_label(h):
+    """
+    Formatira sat koji može biti int (10) ili float (10.5 -> 10:30).
+    Vraća string "HH:MM".
+    """
     try:
-         isinstance(h, float) and not h.is_integer():
+        if h is None:
+            return ""
+        if isinstance(h, (int, float)):
             sati = int(h)
-            minuti = int((h - sati) * 60)
+            minuti = int(round((float(h) - sati) * 60))
             return f"{sati}:{minuti:02d}"
-        return str(int(h))
+        # ako je string, pokušaj float
+        val = float(h)
+        sati = int(val)
+        minuti = int(round((val - sati) * 60))
+        return f"{sati}:{minuti:02d}"
     except Exception:
         return str(h)
 
 @app.route("/")
 def index():
     sada = now_podgorica()
-    dan = sada.weekday()
+    dan = sada.weekday()  # 0=pon, 6=ned
     ime_dana = DANI_PUNIM[dan].lower()
 
+    # default prema danu u nedelji
     sv = RADNO_VRIJEME.get(ime_dana)
-     sv is None:
+    if sv is None:
         start, end = None, None
     else:
         start, end = sv["start"], sv["end"]
 
+    # prepiši ako u data.json postoji unos za današnji datum
     posebni = ucitaj_posebne_datume()
     datum_str = sada.strftime("%Y-%m-%d")
     ps = posebni.get(datum_str)
-     isinstance(ps, (list, tuple)) and len(ps) == 2:
-        start = ps[0]  ps[0] is not None else None
-        end   = ps[1]  ps[1] is not None else None
+
+    if isinstance(ps, (list, tuple)) and len(ps) == 2:
+        # u JSON-u može biti npr. [10, 13.5] ili [null, null]
+        start = ps[0] if ps[0] is not None else None
+        end   = ps[1] if ps[1] is not None else None
 
     # odredi status i poruku
-     start is None or end is None:
+    if start is None or end is None:
         poruka_html = "Danas je neradni dan."
         poruka_tts  = "Danas je neradni dan."
         status_slika = "close1.png"
     else:
         sat = sada.hour + sada.minute / 60
-        otvoreno_sad = (start <= sat < end)
-         otvoreno_sad:
+        otvoreno_sad = (float(start) <= sat < float(end))
+        if otvoreno_sad:
             linije = [
                 "Ordinacija je trenutno otvorena.",
                 f"Danas je radno vrijeme od {sat_label(start)} do {sat_label(end)} časova."
@@ -132,15 +152,20 @@ def index():
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     posebni = ucitaj_posebne_datume()
-     request.method == "POST":
-        datum = request.form["datum"].strip()
-         "neradni" in request.form:
+
+    if request.method == "POST":
+        datum = (request.form.get("datum") or "").strip()
+        if not datum:
+            return redirect(url_for("admin"))
+
+        if "neradni" in request.form:
             start = end = None
         else:
             start = to_int_or_none(request.form.get("start"))
             end   = to_int_or_none(request.form.get("end"))
-             start is None or end is None:
+            if start is None or end is None:
                 start = end = None
+
         posebni[datum] = [start, end]
         sacuvaj_posebne_datume(posebni)
         return redirect(url_for("admin"))
@@ -151,7 +176,7 @@ def admin():
 @app.route("/obrisi/<datum>")
 def obrisi(datum):
     posebni = ucitaj_posebne_datume()
-     datum in posebni:
+    if datum in posebni:
         del posebni[datum]
         sacuvaj_posebne_datume(posebni)
     return redirect(url_for("admin"))
@@ -163,8 +188,8 @@ def posalji_poruku():
     kontakt = (data.get("kontakt") or "").strip()
     poruka  = (data.get("poruka") or "").strip()
 
-     not poruka:
-        return jsony(ok=False, error="Poruka je obavezna."), 400
+    if not poruka:
+        return jsonify(ok=False, error="Poruka je obavezna."), 400
 
     now = now_podgorica()
 
@@ -181,7 +206,7 @@ def posalji_poruku():
         newfile = not os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-             newfile:
+            if newfile:
                 w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])
             w.writerow([now.isoformat(), ime, kontakt, request.remote_addr, poruka])
     except Exception as e:
@@ -192,8 +217,8 @@ def posalji_poruku():
     user   = os.environ.get("GMAIL_USER")
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
 
-     not user or not app_pw:
-        return jsony(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
+    if not user or not app_pw:
+        return jsonify(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
 
     try:
         msg = EmailMessage()
@@ -229,6 +254,7 @@ def download_csv():
     if not os.path.exists(CSV_PATH):
         abort(404)
     return send_file(CSV_PATH, as_attachment=True, download_name="poruke.csv")
+
 @app.get("/ping")
 def ping():
     return "ok", 200
