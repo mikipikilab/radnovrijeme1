@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, s
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from email.utils import formataddr
-
+import urllib.parse
+import html
 import json, os, re, html
 import smtplib, ssl, csv
 from email.message import EmailMessage
@@ -245,9 +246,15 @@ def obrisi(datum):
         del posebni[datum]
         sacuvaj_posebne_datume(posebni)
     return redirect(url_for("admin"))
-
+def build_mailto(to_email: str, subject: str, body: str) -> str:
+    qs = {
+        "subject": subject,
+        "body": body
+    }
+    return f"mailto:{to_email}?{urllib.parse.urlencode(qs)}"
 @app.route("/posalji_poruku", methods=["POST"])
 def posalji_poruku():
+    # --- Ulazni podaci ---
     data = request.get_json(force=True, silent=True) or {}
     ime     = (data.get("ime") or "").strip()
     kontakt = (data.get("kontakt") or "").strip()
@@ -258,27 +265,28 @@ def posalji_poruku():
 
     now = now_podgorica()
 
-    # Klasifikacija kontakt polja
+    # --- Klasifikacija kontakta (email / phone / text) ---
     kontakt_tip, kontakt_val = classify_kontakt(kontakt)
 
-    # Priprema plain i HTML varijante (telefon/mail klikabilni u HTML-u)
+    # --- Kontakt linije (plain + HTML) ---
     if kontakt_tip == "email":
         kontakt_linija_txt = f"E-mail: {kontakt_val}"
-        kontakt_link_html  = f'<a href="mailto:{html.escape(kontakt_val)}">{html.escape(kontakt_val)}</a>'
+        kontakt_link_html  = f'<a href="mailto:{html.escape(kontakt_val)}" style="color:#2563eb;text-decoration:none;">{html.escape(kontakt_val)}</a>'
     elif kontakt_tip == "phone":
         tel_uri = "tel:" + re.sub(r"[^\d+]", "", kontakt_val)
         kontakt_linija_txt = f"Telefon: {kontakt_val}"
-        kontakt_link_html  = f'<a href="{html.escape(tel_uri)}">{html.escape(kontakt_val)}</a>'
+        kontakt_link_html  = f'<a href="{html.escape(tel_uri)}" style="color:#2563eb;text-decoration:none;">{html.escape(kontakt_val)}</a>'
     else:
         kontakt_linija_txt = f"Kontakt: {kontakt_val or '—'}"
         kontakt_link_html  = html.escape(kontakt_val or "—")
 
+    # --- Tijela poruke (plain + HTML) ---
     body_txt = (
         f"Ime i prezime: {ime or '—'}\n"
         f"{kontakt_linija_txt}\n\n"
         f"Poruka:\n{poruka}\n\n"
         f"Vrijeme: {now.isoformat()}\n"
-        f"IP: {request.remote_addr}\n"
+        f"IP: {request.remote_addr or ''}\n"
     )
 
     body_html = f"""
@@ -294,29 +302,28 @@ def posalji_poruku():
     </body></html>
     """
 
-    # 1) Arhiva u CSV
+    # --- CSV arhiva (best-effort) ---
     try:
         newfile = not os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             if newfile:
                 w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])
-            w.writerow([now.isoformat(), ime, kontakt, request.remote_addr, poruka])
+            w.writerow([now.isoformat(), ime, kontakt, request.remote_addr or "", poruka])
     except Exception as e:
         print(f"CSV write error: {e}", flush=True)
-        # nastavljamo na slanje maila
+        # nastavljamo sa slanjem e-maila; CSV je best-effort
 
-    # 2) Slanje email-a (env varijabile)
+    # --- Slanje e-maila (ako je konfigurisan) ---
     user   = os.environ.get("GMAIL_USER")
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
 
-    # Ako mail nije konfigurisan, samo vrati JSON odgovor
     if not user or not app_pw:
         return jsonify(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
 
     try:
         msg = EmailMessage()
-        msg["From"] = formataddr(("PORUKA SA VRATA", user))
+        msg["From"] = formataddr(("PORUKA SA SAJTA", user))
         msg["To"] = "dentalabplaner@gmail.com"
         msg["Subject"] = f"[Kontakt sa sajta] {ime or 'Anonimno'} — {now.strftime('%d.%m.%Y %H:%M')}"
 
@@ -328,7 +335,7 @@ def posalji_poruku():
         if kontakt_tip == "email" and kontakt_val:
             msg["Reply-To"] = kontakt_val
 
-        # (opciono) telefon u custom headeru
+        # (opciono) telefon u custom headeru (može pomoći u filtriranju)
         if kontakt_tip == "phone" and kontakt_val:
             msg["X-Contact-Phone"] = kontakt_val
 
@@ -342,6 +349,7 @@ def posalji_poruku():
         return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
 
     return jsonify(ok=True), 200
+
 
 # --- Pomoćne rute za CSV (opciono) ---
 @app.get("/csv_debug")
