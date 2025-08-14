@@ -446,7 +446,6 @@ def posalji_poruku():
         return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
 
     return jsonify(ok=True), 200
-
 @app.route("/potvrdi_termin", methods=["GET", "POST"])
 def potvrdi_termin():
     # GET: forma sa flatpickr
@@ -454,89 +453,86 @@ def potvrdi_termin():
         ime = (request.args.get("ime") or "").strip()
         email = (request.args.get("email") or "").strip()
         telefon = (request.args.get("telefon") or "").strip()
-        ref = (request.args.get("ref") or "").strip()  # napomena/ref
+        ref = (request.args.get("ref") or "").strip()
 
-        html_form = f"""
-<!DOCTYPE html>
+        html_form = f"""<!DOCTYPE html>
 <html lang="sr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Potvrda termina</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <style>
-    body {{ font-family: system-ui, Arial, sans-serif; background:#f9fafb; color:#111; margin:0; padding:24px; }}
-    .card {{ max-width:520px; margin:0 auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,.06); }}
-    h1 {{ font-size:20px; margin:0 0 12px; }}
-    .row {{ margin-bottom:10px; }}
-    .input {{ width:100%; padding:12px; border:1px solid #d1d5db; border-radius:10px; }}
-    .btn {{ display:inline-block; margin-top:8px; padding:12px 18px; border-radius:10px; border:1px solid #d1d5db; background:#111827; color:#fff; font-weight:700; cursor:pointer; }}
-    .muted {{ color:#6b7280; font-size:12px; }}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Potvrda termina</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+body {{ font-family: system-ui, Arial, sans-serif; background:#f9fafb; color:#111; margin:0; padding:24px; }}
+.card {{ max-width:520px; margin:0 auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,.06); }}
+h1 {{ font-size:20px; margin:0 0 12px; }}
+.row {{ margin-bottom:10px; }}
+.input {{ width:100%; padding:12px; border:1px solid #d1d5db; border-radius:10px; }}
+.btn {{ display:inline-block; margin-top:8px; padding:12px 18px; border-radius:10px; border:1px solid #d1d5db; background:#111827; color:#fff; font-weight:700; cursor:pointer; }}
+.muted {{ color:#6b7280; font-size:12px; }}
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>Potvrda termina</h1>
-    <form method="POST">
-      <div class="row">
-        <label>Ime i prezime</label>
-        <input class="input" name="ime" value="{html.escape(ime)}" placeholder="Ime i prezime" />
-      </div>
-      <div class="row">
-        <label>E-pošta (opciono)</label>
-        <input class="input" name="email" value="{html.escape(email)}" placeholder="npr. osoba@mail.com" />
-      </div>
-      <div class="row">
-        <label>Telefon (opciono)</label>
-        <input class="input" name="telefon" value="{html.escape(telefon)}" placeholder="+382..." />
-      </div>
-      <div class="row">
-        <label>Datum i vrijeme</label>
-        <input id="dt" class="input" name="dt" required placeholder="Izaberite datum i vrijeme" />
-      </div>
-      <div class="row">
-        <label>Napomena (opciono)</label>
-        <textarea class="input" name="napomena" rows="3" placeholder="Dodatna napomena...">{html.escape(ref)}</textarea>
-      </div>
-      <button class="btn" type="submit">Potvrdi termin</button>
-      <div class="muted">Zona vremena: Europe/Podgorica</div>
-    </form>
+<div class="card">
+<h1>Potvrda termina</h1>
+<form method="POST">
+  <div class="row">
+    <label>Ime i prezime</label>
+    <input class="input" name="ime" value="{html.escape(ime)}" />
   </div>
+  <div class="row">
+    <label>E-pošta (opciono)</label>
+    <input class="input" name="email" value="{html.escape(email)}" />
+  </div>
+  <div class="row">
+    <label>Telefon (opciono)</label>
+    <input class="input" name="telefon" value="{html.escape(telefon)}" />
+  </div>
+  <div class="row">
+    <label>Datum i vrijeme</label>
+    <input id="dt" class="input" name="dt" required />
+  </div>
+  <div class="row">
+    <label>Napomena (opciono)</label>
+    <textarea class="input" name="napomena">{html.escape(ref)}</textarea>
+  </div>
+  <button class="btn" type="submit">Potvrdi termin</button>
+  <div class="muted">Zona vremena: Europe/Podgorica</div>
+</form>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/sr.js"></script>
-  <script>
-    flatpickr("#dt", {{
-      enableTime: true,
-      dateFormat: "Y-m-d H:i",
-      minDate: "today",
-      time_24hr: true,
-      locale: "sr"
-    }});
-  </script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/sr.js"></script>
+<script>
+flatpickr("#dt", {{
+    enableTime: true,
+    dateFormat: "Y-m-d H:i",
+    minDate: "today",
+    time_24hr: true,
+    locale: "sr"
+}});
+</script>
 </body>
-</html>
-"""
+</html>"""
         return html_form
 
-    # POST: obrada + e-mail sa .ics linkom i prilogom
+    # POST: obrada + e-mail sa .ics i Google linkom
     ime = (request.form.get("ime") or "").strip()
     email = (request.form.get("email") or "").strip()
     telefon_raw = (request.form.get("telefon") or "").strip()
     napomena = (request.form.get("napomena") or "").strip()
     dt_str = (request.form.get("dt") or "").strip()
 
-    # validacija datuma
     try:
         dt_local = datetime.strptime(dt_str, "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Europe/Podgorica"))
     except Exception:
         return "Neispravan datum/vrijeme.", 400
 
-    # priprema podataka
-    duration_min = 60  # po želji promijeni trajanje
+    duration_min = 60
     telefon_norm = normalize_phone(telefon_raw) or telefon_raw
     when_txt = dt_local.strftime("%d.%m.%Y u %H:%M")
-    # URL za .ics (koristi tvoju /event.ics rutu)
+
+    # ICS link
     ics_qs = urllib.parse.urlencode({
         "title": f"Termin — {ime or 'Pacijent'}",
         "start": dt_local.strftime("%Y-%m-%d %H:%M"),
@@ -545,14 +541,10 @@ def potvrdi_termin():
         "loc": "Dentalab, Podgorica"
     })
     ics_url = request.url_root.rstrip("/") + "/event.ics?" + ics_qs
-# Google Calendar link
-from datetime import timedelta
-import urllib.parse
 
-    # --- Google Calendar link (koristi UTC i format YYYYMMDDTHHMMSSZ/...) ---
+    # Google Calendar link
     start_utc = dt_local.astimezone(ZoneInfo("UTC"))
     end_utc = (dt_local + timedelta(minutes=duration_min)).astimezone(ZoneInfo("UTC"))
-
     gcal_qs = urllib.parse.urlencode({
         "action": "TEMPLATE",
         "text": f"Termin — {ime or 'Pacijent'}",
@@ -563,7 +555,7 @@ import urllib.parse
     })
     google_url = f"https://calendar.google.com/calendar/render?{gcal_qs}"
 
-    # plain tekst
+    # Tekst i HTML maila
     body_txt = (
         "Termin kod stomatologa\n\n"
         f"Ime i prezime: {ime or '—'}\n"
@@ -575,39 +567,25 @@ import urllib.parse
         f"Dodaj u Google Kalendar: {google_url}\n"
     )
 
-    # HTML (sa dugmadima za .ics i Google)
     body_html = f"""
-    <html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
-      <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
-      <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
-      <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
-      <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
-      <p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
-      <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
+<html><body style="font-family:Arial,sans-serif; font-size:14px; color:#111;">
+<h2>Termin kod stomatologa</h2>
+<p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
+<p><b>E-pošta:</b> {html.escape(email or '—')}</p>
+<p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
+<p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
+<p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
+<p><a href="{html.escape(ics_url)}" style="background:#111827;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;">Dodaj u kalendar (.ics)</a></p>
+<p><a href="{html.escape(google_url)}" style="background:#1a73e8;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;">Dodaj u Google Kalendar</a></p>
+</body></html>
+"""
 
-      <p style="margin:12px 0;">
-        <a href="{html.escape(ics_url)}" style="display:inline-block;background:#111827;color:#fff;
-           padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
-           Dodaj u kalendar (.ics)
-        </a>
-      </p>
-
-      <p style="margin:12px 0;">
-        <a href="{html.escape(google_url)}" style="display:inline-block;background:#1a73e8;color:#fff;
-           padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
-           Dodaj u Google Kalendar
-        </a>
-      </p>
-    </body></html>
-    """
-
-    # priprema i slanje maila (+ priložimo .ics za bolju kompatibilnost)
-    user   = os.environ.get("GMAIL_USER")
+    # Slanje emaila
+    user = os.environ.get("GMAIL_USER")
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
     if not user or not app_pw:
-        return "Mail nije konfigurisan (GMAIL_USER/GMAIL_APP_PASSWORD).", 200
+        return "Mail nije konfigurisan.", 200
 
-    # generiši .ics tekst lokalno (koristi tvoju build_ics funkciju)
     ics_text = build_ics(
         summary=f"Termin — {ime or 'Pacijent'}",
         dt_local=dt_local,
@@ -623,28 +601,20 @@ import urllib.parse
         if email:
             msg["Cc"] = email
             msg["Reply-To"] = email
-        msg["Subject"] = f"{ime or 'Pacijent'}, Vaš termin kod stomatologa je zakazan — {when_txt}"
-
+        msg["Subject"] = f"{ime or 'Pacijent'}, Vaš termin je zakazan — {when_txt}"
         msg.set_content(body_txt)
         msg.add_alternative(body_html, subtype="html")
+        msg.add_attachment(ics_text.encode("utf-8"), maintype="text", subtype="calendar", filename="termin.ics")
 
-        # .ics kao prilog
-        msg.add_attachment(
-            ics_text.encode("utf-8"),
-            maintype="text",
-            subtype="calendar",
-            filename="termin.ics"
-        )
-
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
             smtp.login(user, app_pw)
             smtp.send_message(msg)
     except Exception as e:
-        print(f"Mail error (potvrdi_termin): {e}", flush=True)
+        print(f"Mail error: {e}", flush=True)
         return "Greška pri slanju e-pošte.", 500
 
     return "Termin je potvrđen. Hvala!", 200
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5098))
