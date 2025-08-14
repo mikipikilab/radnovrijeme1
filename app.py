@@ -316,6 +316,136 @@ def obrisi(datum):
         del posebni[datum]
         sacuvaj_posebne_datume(posebni)
     return redirect(url_for("admin"))
+
+@app.route("/posalji_poruku", methods=["POST"])
+def posalji_poruku():
+    data = request.get_json(force=True, silent=True) or {}
+    ime     = (data.get("ime") or "").strip()
+    kontakt = (data.get("kontakt") or "").strip()
+    poruka  = (data.get("poruka") or "").strip()
+
+    if not poruka:
+        return jsonify(ok=False, error="Poruka je obavezna."), 400
+
+    now = now_podgorica()
+    kontakt_tip, kontakt_val = classify_kontakt(kontakt)
+
+    # linije za plain text i HTML link za kontakt
+    if kontakt_tip == "email":
+        kontakt_linija_txt = f"E-mail: {kontakt_val}"
+        kontakt_link_html  = f'<a href="mailto:{html.escape(kontakt_val)}" style="color:#2563eb;text-decoration:none;">{html.escape(kontakt_val)}</a>'
+    elif kontakt_tip == "phone":
+        tel_uri = "tel:" + re.sub(r"[^\d+]", "", kontakt_val)
+        kontakt_linija_txt = f"Telefon: {kontakt_val}"
+        kontakt_link_html  = f'<a href="{html.escape(tel_uri)}" style="color:#2563eb;text-decoration:none;">{html.escape(kontakt_val)}</a>'
+    else:
+        kontakt_linija_txt = f"Kontakt: {kontakt_val or '—'}"
+        kontakt_link_html  = html.escape(kontakt_val or "—")
+
+    body_txt = (
+        f"Ime i prezime: {ime or '—'}\n"
+        f"{kontakt_linija_txt}\n\n"
+        f"Poruka:\n{poruka}\n\n"
+        f"Vrijeme: {now.isoformat()}\n"
+        f"IP: {request.remote_addr or ''}\n"
+    )
+
+    # link za prefill potvrde termina
+    url_base = request.url_root.rstrip("/")
+    confirm_qs = urllib.parse.urlencode({
+        "ime": ime or "",
+        "email": kontakt_val if (kontakt_tip == "email") else "",
+        "telefon": kontakt_val if (kontakt_tip == "phone") else "",
+        "ref": f"Ref: poruka sa sajta {now.strftime('%d.%m.%Y %H:%M')}",
+    })
+    confirm_url = f"{url_base}/potvrdi_termin?{confirm_qs}"
+    confirm_btn_html = (
+        f'<a href="{html.escape(confirm_url)}" '
+        'style="display:inline-block;background:#111827;color:#fff;'
+        'padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700;">'
+        'Potvrdi termin</a>'
+    )
+
+    # brzi odgovori
+    mail_to = "dentalabplaner@gmail.com"
+    quick_reply_to = kontakt_val if (kontakt_tip == "email" and kontakt_val) else mail_to
+
+    def build_mailto(to_email: str, subject: str, body: str) -> str:
+        qs = {"subject": subject, "body": body}
+        return f"mailto:{to_email}?{urllib.parse.urlencode(qs)}"
+
+    hvala_link = build_mailto(
+        quick_reply_to,
+        f"Hvala na poruci – {ime or 'poštovani/na'}",
+        "Hvala Vam na javljanju. Uskoro ćemo se povratno javiti.\n\n— DENTALAB",
+    )
+    prosledjujem_link = build_mailto(
+        quick_reply_to,
+        f"Vaša poruka je prosleđena – {ime or 'poštovani/na'}",
+        "Vašu poruku smo prosledili nadležnom timu/doktoru. Javićemo Vam se čim dobijemo povratnu informaciju.\n\n— DENTALAB",
+    )
+
+    body_html = f"""
+    <html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
+      <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
+      <p><b>Kontakt:</b> {kontakt_link_html}</p>
+      <p><b>Poruka:</b><br>{html.escape(poruka).replace('\\n','<br>')}</p>
+      <hr style="border:none;border-top:1px solid #ddd;margin:12px 0">
+      <p style="color:#555;">
+        Vrijeme: {html.escape(now.isoformat())}<br>
+        IP: {html.escape(request.remote_addr or '')}
+      </p>
+      <div style="margin:20px 0;text-align:center;">
+        {confirm_btn_html}
+      </div>
+      <p style="margin-top:20px;color:#555;">Brzi odgovori:</p>
+      <ul style="list-style:none;padding:0;margin:0;">
+        <li style="margin:6px 0;"><a href="{html.escape(hvala_link)}" style="color:#2563eb;text-decoration:none;">Hvala</a></li>
+        <li style="margin:6px 0;"><a href="{html.escape(prosledjujem_link)}" style="color:#2563eb;text-decoration:none;">Prosleđujem</a></li>
+      </ul>
+    </body></html>
+    """
+
+    # CSV zapis
+    try:
+        newfile = not os.path.exists(CSV_PATH)
+        with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            if newfile:
+                w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])
+            w.writerow([now.isoformat(), ime, kontakt, request.remote_addr or "", poruka])
+    except Exception as e:
+        print(f"CSV write error: {e}", flush=True)
+
+    # Slanje e-maila
+    user = os.environ.get("GMAIL_USER")
+    app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
+    if not user or not app_pw:
+        return jsonify(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
+
+    try:
+        msg = EmailMessage()
+        msg["From"] = formataddr(("PORUKA SA SAJTA", user))
+        msg["To"] = "dentalabplaner@gmail.com"
+        msg["Subject"] = f"[Kontakt sa sajta] {ime or 'Anonimno'} — {now.strftime('%d.%m.%Y %H:%M')}"
+        msg.set_content(body_txt)
+        msg.add_alternative(body_html, subtype="html")
+
+        if kontakt_tip == "email" and kontakt_val:
+            msg["Reply-To"] = kontakt_val
+        if kontakt_tip == "phone" and kontakt_val:
+            msg["X-Contact-Phone"] = kontakt_val
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
+            smtp.login(user, app_pw)
+            smtp.send_message(msg)
+    except Exception as e:
+        print(f"Mail error: {e}", flush=True)
+        return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
+
+    return jsonify(ok=True), 200
+
 @app.route("/potvrdi_termin", methods=["GET", "POST"])
 def potvrdi_termin():
     # GET: forma sa flatpickr
