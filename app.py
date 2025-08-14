@@ -442,14 +442,12 @@ body_html = f"""
     return jsonify(ok=True), 200
 @app.route("/potvrdi_termin", methods=["GET", "POST"])
 def potvrdi_termin():
+    # GET: forma sa flatpickr
     if request.method == "GET":
         ime = (request.args.get("ime") or "").strip()
         email = (request.args.get("email") or "").strip()
         telefon = (request.args.get("telefon") or "").strip()
         ref = (request.args.get("ref") or "").strip()  # napomena/ref
-
-        # baza za iframe
-        iframe_base = "http://localhost:5055/"
 
         html_form = f"""
 <!DOCTYPE html>
@@ -461,20 +459,18 @@ def potvrdi_termin():
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <style>
     body {{ font-family: system-ui, Arial, sans-serif; background:#f9fafb; color:#111; margin:0; padding:24px; }}
-    .card {{ max-width:620px; margin:0 auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,.06); }}
+    .card {{ max-width:520px; margin:0 auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,.06); }}
     h1 {{ font-size:20px; margin:0 0 12px; }}
     .row {{ margin-bottom:10px; }}
     .input {{ width:100%; padding:12px; border:1px solid #d1d5db; border-radius:10px; }}
     .btn {{ display:inline-block; margin-top:8px; padding:12px 18px; border-radius:10px; border:1px solid #d1d5db; background:#111827; color:#fff; font-weight:700; cursor:pointer; }}
     .muted {{ color:#6b7280; font-size:12px; }}
-    .frame-wrap {{ margin-top:16px; display:none; }}
-    iframe {{ width:100%; height:420px; border:1px solid #e5e7eb; border-radius:10px; }}
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Potvrda termina</h1>
-    <form id="f" method="POST">
+    <form method="POST">
       <div class="row">
         <label>Ime i prezime</label>
         <input class="input" name="ime" value="{html.escape(ime)}" placeholder="Ime i prezime" />
@@ -498,58 +494,17 @@ def potvrdi_termin():
       <button class="btn" type="submit">Potvrdi termin</button>
       <div class="muted">Zona vremena: Europe/Podgorica</div>
     </form>
-
-    <!-- LIVE IFRAME (prikazuje se kad se izabere datum/vrijeme) -->
-    <div id="frameWrap" class="frame-wrap">
-      <iframe id="liveFrame" src="about:blank" loading="lazy"></iframe>
-    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/sr.js"></script>
   <script>
-    const IFRAME_BASE = {json.dumps(iframe_base)};
-    const form = document.getElementById('f');
-    const dtEl = document.getElementById('dt');
-    const frameWrap = document.getElementById('frameWrap');
-    const liveFrame = document.getElementById('liveFrame');
-
-    function buildSrc() {{
-      const fd = new FormData(form);
-      const q = new URLSearchParams();
-      if (fd.get('ime')) q.set('ime', fd.get('ime'));
-      if (fd.get('email')) q.set('email', fd.get('email'));
-      if (fd.get('telefon')) q.set('telefon', fd.get('telefon'));
-      if (fd.get('napomena')) q.set('napomena', fd.get('napomena'));
-      if (fd.get('dt')) q.set('dt', fd.get('dt')); // format: YYYY-MM-DD HH:MM
-      return IFRAME_BASE + "?" + q.toString();
-    }}
-
-    function updateFrame() {{
-      const val = dtEl.value.trim();
-      if (!val) {{
-        frameWrap.style.display = 'none';
-        liveFrame.src = 'about:blank';
-        return;
-      }}
-      liveFrame.src = buildSrc();
-      frameWrap.style.display = 'block';
-    }}
-
     flatpickr("#dt", {{
       enableTime: true,
       dateFormat: "Y-m-d H:i",
       minDate: "today",
       time_24hr: true,
-      locale: "sr",
-      onChange: updateFrame
-    }});
-
-    ['ime','email','telefon','napomena'].forEach(name => {{
-      const el = form.querySelector(`[name="{{name}}"]`.replace('{{name}}', name));
-      if (el) el.addEventListener('input', () => {{
-        if (dtEl.value.trim()) updateFrame();
-      }});
+      locale: "sr"
     }});
   </script>
 </body>
@@ -557,59 +512,77 @@ def potvrdi_termin():
 """
         return html_form
 
-    # POST: obradi formu i pošalji e-mail
+    # POST: obrada + e-mail sa .ics linkom i prilogom
     ime = (request.form.get("ime") or "").strip()
     email = (request.form.get("email") or "").strip()
     telefon_raw = (request.form.get("telefon") or "").strip()
     napomena = (request.form.get("napomena") or "").strip()
     dt_str = (request.form.get("dt") or "").strip()
 
+    # validacija datuma
     try:
         dt_local = datetime.strptime(dt_str, "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Europe/Podgorica"))
     except Exception:
         return "Neispravan datum/vrijeme.", 400
 
+    # priprema podataka
+    duration_min = 60  # po želji promijeni trajanje
     telefon_norm = normalize_phone(telefon_raw) or telefon_raw
     when_txt = dt_local.strftime("%d.%m.%Y u %H:%M")
-# link za .ics (dodavanje u kalendar)
-ics_qs = urllib.parse.urlencode({
-    "title": f"Termin kod stomatologa – {ime or 'Pacijent'}",
-    "start": dt_local.strftime("%Y-%m-%d %H:%M"),
-    "dur": "60",
-    "details": (napomena or ""),
-    "loc": "DENTALAB, Podgorica",
-})
-ics_url = request.url_root.rstrip("/") + "/event.ics?" + ics_qs
+    # URL za .ics (koristi tvoju /event.ics rutu)
+    ics_qs = urllib.parse.urlencode({
+        "title": f"Termin — {ime or 'Pacijent'}",
+        "start": dt_local.strftime("%Y-%m-%d %H:%M"),
+        "dur": duration_min,
+        "details": napomena or "",
+        "loc": "Dentalab, Podgorica"
+    })
+    ics_url = request.url_root.rstrip("/") + "/event.ics?" + ics_qs
 
+    # plain tekst
     body_txt = (
         "Termin kod stomatologa\n\n"
         f"Ime i prezime: {ime or '—'}\n"
         f"E-pošta: {email or '—'}\n"
         f"Telefon: {telefon_norm or '—'}\n"
         f"Termin: {when_txt} (Europe/Podgorica)\n"
-        f"Napomena: {napomena or '—'}\n"
+        f"Napomena: {napomena or '—'}\n\n"
+        f"Dodaj u kalendar (.ics): {ics_url}\n"
     )
-   body_html = f"""
-<html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
-  <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
-  <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
-  <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
-  <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
-  <p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
-  <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
-  <p style="margin:12px 0;">
-    <a href="{html.escape(ics_url)}" style="display:inline-block;background:#111827;color:#fff;
-       padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
-       Dodaj u kalendar (.ics)
-    </a>
-  </p>
-</body></html>
-"""
 
+    # HTML (sa dugmetom “Dodaj u kalendar”)
+    body_html = f"""
+    <html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
+      <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
+      <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
+      <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
+      <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
+      <p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
+      <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
+
+      <p style="margin:12px 0;">
+        <a href="{html.escape(ics_url)}" style="display:inline-block;background:#111827;color:#fff;
+           padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
+           Dodaj u kalendar (.ics)
+        </a>
+      </p>
+    </body></html>
+    """
+
+    # priprema i slanje maila (+ priložimo .ics za bolju kompatibilnost)
     user   = os.environ.get("GMAIL_USER")
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
     if not user or not app_pw:
         return "Mail nije konfigurisan (GMAIL_USER/GMAIL_APP_PASSWORD).", 200
+
+    # generiši .ics tekst lokalno (koristi tvoju build_ics funkciju)
+    ics_text = build_ics(
+        summary=f"Termin — {ime or 'Pacijent'}",
+        dt_local=dt_local,
+        duration_min=duration_min,
+        description=napomena or "",
+        location="Dentalab, Podgorica"
+    )
 
     try:
         msg = EmailMessage()
@@ -622,6 +595,14 @@ ics_url = request.url_root.rstrip("/") + "/event.ics?" + ics_qs
 
         msg.set_content(body_txt)
         msg.add_alternative(body_html, subtype="html")
+
+        # .ics kao prilog
+        msg.add_attachment(
+            ics_text.encode("utf-8"),
+            maintype="text",
+            subtype="calendar",
+            filename="termin.ics"
+        )
 
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
