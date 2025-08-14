@@ -607,9 +607,9 @@ body_html = f"""
 """
 
 
-    # Slanje emaila (+ .ics kao prilog)
-    user = os.environ.get("GMAIL_USER")
-    app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
+# priprema i slanje maila (+ priložimo .ics za bolju kompatibilnost)
+user   = os.environ.get("GMAIL_USER")
+app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
     if not user or not app_pw:
         return "Mail nije konfigurisan (GMAIL_USER/GMAIL_APP_PASSWORD).", 200
 
