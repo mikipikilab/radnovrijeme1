@@ -400,9 +400,8 @@ body_html = f"""
   </p>
 </body></html>
 """
-   
-     # CSV zapis
-    try:
+# CSV zapis
+try:
         newfile = not os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
