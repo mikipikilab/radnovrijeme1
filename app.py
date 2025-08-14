@@ -401,7 +401,7 @@ def potvrdi_termin():
     .card {{ max-width:520px; margin:0 auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,.06); }}
     h1 {{ font-size:20px; margin:0 0 12px; }}
     .row {{ margin-bottom:10px; }}
-    .input {{ width:100%; padding:12px; border:1px solid #d1d5db; border-radius:10px; }}
+    .input {{ width:80%; padding:12px; border:1px solid #d1d5db; border-radius:10px; }}
     .btn {{ display:inline-block; margin-top:8px; padding:12px 18px; border-radius:10px; border:1px solid #d1d5db; background:#111827; color:#fff; font-weight:700; cursor:pointer; }}
     .muted {{ color:#6b7280; font-size:12px; }}
   </style>
@@ -476,7 +476,7 @@ def potvrdi_termin():
     )
     body_html = f"""
     <html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
-      <h2 style="margin:0 0 8px;">Potvrđen termin</h2>
+      <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
       <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
       <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
       <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
