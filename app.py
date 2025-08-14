@@ -545,6 +545,23 @@ def potvrdi_termin():
         "loc": "Dentalab, Podgorica"
     })
     ics_url = request.url_root.rstrip("/") + "/event.ics?" + ics_qs
+# Google Calendar link
+from datetime import timedelta
+import urllib.parse
+
+start_utc = dt_local.astimezone(ZoneInfo("UTC"))
+end_utc = (dt_local + timedelta(minutes=duration_min)).astimezone(ZoneInfo("UTC"))
+
+gcal_qs = urllib.parse.urlencode({
+    "action":  "TEMPLATE",
+    "text":    f"Termin — {ime or 'Pacijent'}",
+    "dates":   f"{start_utc:%Y%m%dT%H%M%SZ}/{end_utc:%Y%m%dT%H%M%SZ}",
+    "details": napomena or "",
+    "location":"Dentalab, Podgorica",
+    "ctz":     "Europe/Podgorica",
+}, quote_via=urllib.parse.quote)
+
+google_url = f"https://calendar.google.com/calendar/render?{gcal_qs}"
 
     # plain tekst
     body_txt = (
@@ -555,6 +572,8 @@ def potvrdi_termin():
         f"Termin: {when_txt} (Europe/Podgorica)\n"
         f"Napomena: {napomena or '—'}\n\n"
         f"Dodaj u kalendar (.ics): {ics_url}\n"
+        f"Dodaj u Google Kalendar: {google_url}\n"
+
     )
 
     # HTML (sa dugmetom “Dodaj u kalendar”)
@@ -573,6 +592,14 @@ def potvrdi_termin():
            Dodaj u kalendar (.ics)
         </a>
       </p>
+      <p style="margin:6px 0;">
+  <a href="{html.escape(google_url)}" target="_blank" rel="noopener"
+     style="display:inline-block;background:#1a73e8;color:#fff;
+     padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
+     Dodaj u Google Kalendar
+  </a>
+</p>
+
     </body></html>
     """
 
