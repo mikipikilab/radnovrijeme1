@@ -292,8 +292,8 @@ def posalji_poruku():
     user   = os.environ.get("GMAIL_USER")
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
 
+    # Ako mail nije konfigurisan, i dalje vrati podatke za call/mail frontendu
     if not user or not app_pw:
-        # i dalje vrati info za call/mail na frontend
         resp = {"ok": True, "warning": "Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni).", "kontakt_tip": kontakt_tip}
         if kontakt_tip == "phone" and kontakt_val:
             resp["telefon_norm"] = kontakt_val
@@ -324,7 +324,7 @@ def posalji_poruku():
 
     except Exception as e:
         print(f"Mail error: {e}", flush=True)
-        # čak i ako mail padne, vrati info za call/mail na frontend
+        # ako mail padne, i dalje vrati podatke za call/mail frontendu
         resp = {"ok": True, "warning": f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}", "kontakt_tip": kontakt_tip}
         if kontakt_tip == "phone" and kontakt_val:
             resp["telefon_norm"] = kontakt_val
@@ -333,7 +333,7 @@ def posalji_poruku():
             resp["email"] = kontakt_val
         return jsonify(resp), 200
 
-    # Uspješno
+    # Uspješno: vrati info za call/mail
     resp = {"ok": True, "kontakt_tip": kontakt_tip}
     if kontakt_tip == "phone" and kontakt_val:
         resp["telefon_norm"] = kontakt_val
