@@ -467,7 +467,7 @@ def potvrdi_termin():
     # Sastavi mail (plain + HTML)
     when_txt = dt_local.strftime("%d.%m.%Y u %H:%M")
     body_txt = (
-        f"POTVRĐEN TERMIN\n\n"
+        f"Termin kod stomatologa za \n\n"
         f"Ime i prezime: {ime or '—'}\n"
         f"E-pošta: {email or '—'}\n"
         f"Telefon: {telefon_norm or '—'}\n"
@@ -497,7 +497,7 @@ def potvrdi_termin():
         msg["To"] = "dentalabplaner@gmail.com"
         if email:
             msg["Cc"] = email  # kopija pacijentu ako je dao e-poštu
-        msg["Subject"] = f"Potvrđen termin — {ime or 'Pacijent'} — {when_txt}"
+        msg["Subject"] = f"{ime or 'Pacijent', Vaš termin kod stomatologa je zakazan  {when_txt}"
 
         msg.set_content(body_txt)
         msg.add_alternative(body_html, subtype="html")
