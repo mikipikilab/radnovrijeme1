@@ -1,5 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, abort
-from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, abort, Response
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from email.utils import formataddr
 
@@ -7,7 +7,74 @@ import json, os, re, html, urllib.parse
 import smtplib, ssl, csv
 from email.message import EmailMessage
 
+# APP MORA BITI DEFINISAN PRIJE SVIH @app.route
 app = Flask(__name__, template_folder="templates")
+
+# ---- ICS helperi ----
+def _ics_ts(dt_aware):
+    # očekuje timezone-aware datetime; u .ics pišemo u UTC
+    return dt_aware.strftime("%Y%m%dT%H%M%SZ")
+
+def build_ics(summary, dt_local, duration_min=60, description="", location=""):
+    # pretvaramo start/end u UTC radi kompatibilnosti
+    dt_start_utc = dt_local.astimezone(ZoneInfo("UTC"))
+    dt_end_utc = (dt_local + timedelta(minutes=duration_min)).astimezone(ZoneInfo("UTC"))
+
+    start_s = _ics_ts(dt_start_utc)
+    end_s   = _ics_ts(dt_end_utc)
+    uid = f"{start_s}-{abs(hash((summary, start_s)))}@dentalab"
+
+    # escape novih redova
+    desc = (description or "").replace("\r\n", "\n").replace("\n", "\\n")
+    loc  = (location or "").replace("\r\n", "\n").replace("\n", "\\n")
+    summ = (summary or "Termin").replace("\n", " ")
+
+    return (
+        "BEGIN:VCALENDAR\r\n"
+        "VERSION:2.0\r\n"
+        "PRODID:-//Dentalab//Appointment//EN\r\n"
+        "CALSCALE:GREGORIAN\r\n"
+        "METHOD:PUBLISH\r\n"
+        "BEGIN:VEVENT\r\n"
+        f"UID:{uid}\r\n"
+        f"DTSTAMP:{start_s}\r\n"
+        f"DTSTART:{start_s}\r\n"
+        f"DTEND:{end_s}\r\n"
+        f"SUMMARY:{summ}\r\n"
+        f"DESCRIPTION:{desc}\r\n"
+        f"LOCATION:{loc}\r\n"
+        "END:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+
+@app.get("/event.ics")
+def event_ics():
+    title = (request.args.get("title") or "Termin").strip()
+    start = (request.args.get("start") or "").strip()  # "YYYY-MM-DD HH:MM"
+    duration = int((request.args.get("dur") or "60").strip())
+    details = (request.args.get("details") or "").strip()
+    location = (request.args.get("loc") or "").strip()
+
+    try:
+        dt_local = datetime.strptime(start, "%Y-%m-%d %H:%M").replace(
+            tzinfo=ZoneInfo("Europe/Podgorica")
+        )
+    except Exception:
+        return "Bad start", 400
+
+    ics_text = build_ics(
+        summary=title,
+        dt_local=dt_local,
+        duration_min=duration,
+        description=details,
+        location=location,
+    )
+    return Response(
+        ics_text,
+        mimetype="text/calendar",
+        headers={"Content-Disposition": 'attachment; filename="termin.ics"'}
+    )
+
 
 # --- podesiva putanja za CSV (na Renderu koristi /data/poruke.csv) ---
 CSV_PATH = os.environ.get("CSV_PATH") or os.path.join(app.instance_path, "poruke.csv")
@@ -316,27 +383,23 @@ def posalji_poruku():
         f"Vaša poruka je prosleđena – {ime or 'poštovani/na'}",
         "Vašu poruku smo prosledili nadležnom timu/doktoru. Javićemo Vam se čim dobijemo povratnu informaciju.\n\n— DENTALAB"
     )
+body_html = f"""
+<html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
+  <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
+  <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
+  <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
+  <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
+  <p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
+  <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
 
-    body_html = f"""
-    <html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
-      <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
-      <p><b>Kontakt:</b> {kontakt_link_html}</p>
-      <p><b>Poruka:</b><br>{html.escape(poruka).replace('\\n','<br>')}</p>
-      <hr style="border:none;border-top:1px solid #ddd;margin:12px 0">
-      <p style="color:#555;">
-        Vrijeme: {html.escape(now.isoformat())}<br>
-        IP: {html.escape(request.remote_addr or '')}
-      </p>
-      <div style="margin:20px 0;text-align:center;">
-        {confirm_btn_html}
-      </div>
-      <p style="margin-top:20px;color:#555;">Brzi odgovori:</p>
-      <ul style="list-style:none;padding:0;margin:0;">
-        <li style="margin:6px 0;"><a href="{html.escape(hvala_link)}" style="color:#2563eb;text-decoration:none;">Hvala</a></li>
-        <li style="margin:6px 0;"><a href="{html.escape(prosledjujem_link)}" style="color:#2563eb;text-decoration:none;">Prosleđujem</a></li>
-      </ul>
-    </body></html>
-    """
+  <p style="margin:12px 0;">
+    <a href="{html.escape(ics_url)}" style="display:inline-block;background:#111827;color:#fff;
+       padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
+       Dodaj u kalendar (.ics)
+    </a>
+  </p>
+</body></html>
+"""
 
     # CSV zapis
     try:
@@ -508,6 +571,15 @@ def potvrdi_termin():
 
     telefon_norm = normalize_phone(telefon_raw) or telefon_raw
     when_txt = dt_local.strftime("%d.%m.%Y u %H:%M")
+# link za .ics (dodavanje u kalendar)
+ics_qs = urllib.parse.urlencode({
+    "title": f"Termin kod stomatologa – {ime or 'Pacijent'}",
+    "start": dt_local.strftime("%Y-%m-%d %H:%M"),
+    "dur": "60",
+    "details": (napomena or ""),
+    "loc": "DENTALAB, Podgorica",
+})
+ics_url = request.url_root.rstrip("/") + "/event.ics?" + ics_qs
 
     body_txt = (
         "Termin kod stomatologa\n\n"
@@ -517,16 +589,22 @@ def potvrdi_termin():
         f"Termin: {when_txt} (Europe/Podgorica)\n"
         f"Napomena: {napomena or '—'}\n"
     )
-    body_html = f"""
-    <html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
-      <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
-      <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
-      <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
-      <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
-      <p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
-      <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
-    </body></html>
-    """
+   body_html = f"""
+<html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
+  <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
+  <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
+  <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
+  <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
+  <p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
+  <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
+  <p style="margin:12px 0;">
+    <a href="{html.escape(ics_url)}" style="display:inline-block;background:#111827;color:#fff;
+       padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
+       Dodaj u kalendar (.ics)
+    </a>
+  </p>
+</body></html>
+"""
 
     user   = os.environ.get("GMAIL_USER")
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
