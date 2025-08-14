@@ -377,19 +377,58 @@ def posalji_poruku():
         return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
 
     return jsonify(ok=True), 200
-@app.route("/potvrdi_termin", methods=["GET", "POST"])
+
+   @app.route("/potvrdi_termin", methods=["GET", "POST"])
 def potvrdi_termin():
-    # GET: prikaži formu
     if request.method == "GET":
         ime = (request.args.get("ime") or "").strip()
         email = (request.args.get("email") or "").strip()
         telefon = (request.args.get("telefon") or "").strip()
         ref = (request.args.get("ref") or "").strip()
 
-        html_form = f"""... tvoja HTML forma ..."""
+        # === OVDJE JE TVOJA HTML FORMA ===
+        html_form = f"""
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Potvrda termina</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+        </head>
+        <body style="font-family: Arial, sans-serif;">
+            <h2>Potvrda termina</h2>
+            <form method="post" action="/potvrdi_termin">
+                <label>Ime i prezime:</label><br>
+                <input type="text" name="ime" value="{html.escape(ime)}"><br><br>
+
+                <label>E-mail:</label><br>
+                <input type="email" name="email" value="{html.escape(email)}"><br><br>
+
+                <label>Telefon:</label><br>
+                <input type="text" name="telefon" value="{html.escape(telefon)}"><br><br>
+
+                <label>Napomena:</label><br>
+                <textarea name="napomena"></textarea><br><br>
+
+                <label>Datum i vrijeme termina:</label><br>
+                <input type="text" id="dt" name="dt"><br><br>
+
+                <button type="submit">Potvrdi termin</button>
+            </form>
+
+            <script>
+                flatpickr("#dt", {{
+                    enableTime: true,
+                    dateFormat: "Y-m-d H:i",
+                    time_24hr: true
+                }});
+            </script>
+        </body>
+        </html>
+        """
         return html_form
 
-    # === OVDJE POČINJE POST dio (i sve ostaje unutar funkcije) ===
+    # === OVDJE JE POST dio (obrada forme i slanje e-maila) ===
     ime = (request.form.get("ime") or "").strip()
     email = (request.form.get("email") or "").strip()
     telefon_raw = (request.form.get("telefon") or "").strip()
@@ -402,8 +441,8 @@ def potvrdi_termin():
         return "Neispravan datum/vrijeme.", 400
 
     telefon_norm = normalize_phone(telefon_raw) or telefon_raw
-
     when_txt = dt_local.strftime("%d.%m.%Y u %H:%M")
+
     body_txt = (
         "Termin kod stomatologa\n\n"
         f"Ime i prezime: {ime or '—'}\n"
