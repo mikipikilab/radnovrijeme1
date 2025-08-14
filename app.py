@@ -378,7 +378,7 @@ def posalji_poruku():
 
     return jsonify(ok=True), 200
 
-   @app.route("/potvrdi_termin", methods=["GET", "POST"])
+@app.route("/potvrdi_termin", methods=["GET", "POST"])
 def potvrdi_termin():
     if request.method == "GET":
         ime = (request.args.get("ime") or "").strip()
