@@ -401,19 +401,17 @@ body_html = f"""
 </body></html>
 """
    
- # CSV zapis
+     # CSV zapis
     try:
         newfile = not os.path.exists(CSV_PATH)
-
-
-        newfile = not os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
-            w = csv.writer(f)
+            writer = csv.writer(f)
             if newfile:
-                w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])
-            w.writerow([now.isoformat(), ime, kontakt, request.remote_addr or "", poruka])
+                writer.writerow(["Ime", "E-pošta", "Telefon", "Datum/vrijeme", "Napomena"])
+            writer.writerow([ime, email, telefon_norm, when_txt, napomena])
     except Exception as e:
-        print(f"CSV write error: {e}", flush=True)
+        print(f"CSV error: {e}", flush=True)
+
 
     # Slanje e-maila
     user   = os.environ.get("GMAIL_USER")
