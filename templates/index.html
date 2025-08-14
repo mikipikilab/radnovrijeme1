@@ -8,136 +8,46 @@
 <style>
  :root { 
   color-scheme: light; 
-  --page-width: 900px; /* ovdje mijenjaš maksimalnu širinu stranice */
+  --page-width: 900px;
 }
-
 * { box-sizing: border-box; }
-
 body {
   font-family: system-ui, Arial, sans-serif;
   background: #f9fafb;
   color: #111827;
-  margin: 0;
-  padding: 24px;
-  text-align: center;
+  margin: 0; padding: 24px; text-align: center;
 }
-
-/* Glavni kontejner koji drži SAV sadržaj u okviru body-ja */
-.page {
-  width: min(100%, var(--page-width));
-  margin-inline: auto;       /* centrirano */
-}
-
-/* status slika neka poštuje širinu kontejnera */
+.page { width: min(100%, var(--page-width)); margin-inline: auto; }
 .status-img {
-  display: block;
-  width: 80%;               /* zauzmi širinu kontejnera */
-  max-width: 560px;          /* ali ne šire od ovoga */
-  height: auto;
-  margin: -10px auto 8px;
-  transform-origin: top center;
-  animation: swing 2s ease-in-out infinite;
+  display: block; width: 80%; max-width: 560px; height: auto;
+  margin: -10px auto 8px; transform-origin: top center; animation: swing 2s ease-in-out infinite;
 }
-
-/* ostalo može ostati isto … */
-
-  .logo {
-    display: block;
-    max-width: 80%;
-    height: auto;
-   
-  }
-
-  /* Glavna poruka */
-  h1 {
-    font-size: 20px;
-    margin: 0 0 12px;
-    color: #111827;
-    letter-spacing: .4px;
-    font-weight: 700;
-  }
-
-  .sub {
-    color: white;
-    margin-bottom: 5px;
-    line-height: 1.2;
-    font-size: 12px;
-    font-weight: 500;
-    opacity: 0.05;
-  }
-
-  .meta {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    align-items: center;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 4px 8px;
-    box-shadow: 0 6px 18px rgba(0,0,0,.06);
-    margin: 0 auto 6px;
-    font-size: 18px;
-    font-weight: 800;
-       max-width: 100%;
-   margin-top: -10px;
-  }
-  .sep {
-    opacity: .4;
-    font-weight: 700;
-    font-size: 1.5em;
-  }
-
-  /* 🔊 dugme: gore lijevo, preko svega, poluprozirno */
-  button.speaker-btn {
-    position: absolute;     /* promijeni u fixed ako želiš da ostane pri skrolu */
-    top: 10px;
-    left: 10px;
-    padding: 14px 24px;
-    border-radius: 20px;
-    border: 2px solid rgba(255,255,255,0.6);
-    background: rgba(0,0,0,0.4);
-    cursor: pointer;
-    font-size: 3rem;
-    color: #fff;
-    font-weight: 800;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    backdrop-filter: blur(4px);
-    transition: background 0.2s ease, color 0.2s ease;
-    z-index: 9999;
-  }
-  button.speaker-btn:hover {
-    background: rgba(0,0,0,0.6);
-  }
-
-  a {
-    color: #2563eb;
-    text-decoration: none;
-    font-size: 1.4rem;
-    font-weight: 700;
-  }
-  a:hover { text-decoration: underline; }
-
- 
-  @keyframes swing {
-    0%   { transform: rotate(-5deg); }
-    50%  { transform: rotate(5deg); }
-    100% { transform: rotate(-5deg); }
-  }
-
-  /* Kontakt kutija */
-  .contact-box { max-width:720px; margin:1px auto 0; padding:16px; }
-  .input, .textarea {
-    width:100%; padding:14px 12px; margin:0 0 10px;
-    border:1px solid #d1d5db; border-radius:12px; font-size:1rem;
-  }
-  .textarea { resize:vertical; }
-  .btn {
-    margin-top:10px; padding:12px 18px; border-radius:12px;
-    border:2px solid #d1d5db; background:#fff; cursor:pointer; font-weight:700;   color:black;
-    box-shadow:0 4px 10px rgba(0,0,0,.06);
-  }
-  #msgStatus { margin-top:8px; font-size:.95rem; }
+.logo { display: block; max-width: 80%; height: auto; }
+h1 { font-size: 20px; margin: 0 0 12px; color: #111827; letter-spacing: .4px; font-weight: 700; }
+.sub { color: white; margin-bottom: 5px; line-height: 1.2; font-size: 12px; font-weight: 500; opacity: 0.05; }
+.meta {
+  display:flex; justify-content:center; gap:6px; align-items:center;
+  background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:4px 8px;
+  box-shadow:0 6px 18px rgba(0,0,0,.06); margin:0 auto 6px; font-size:18px; font-weight:800;
+  max-width:100%; margin-top:-10px;
+}
+.sep { opacity:.4; font-weight:700; font-size:1.5em; }
+button.speaker-btn {
+  position:absolute; top:10px; left:10px; padding:14px 24px; border-radius:20px;
+  border:2px solid rgba(255,255,255,0.6); background:rgba(0,0,0,0.4);
+  cursor:pointer; font-size:3rem; color:#fff; font-weight:800;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2); backdrop-filter:blur(4px);
+  transition:background .2s ease, color .2s ease; z-index:9999;
+}
+button.speaker-btn:hover { background:rgba(0,0,0,0.6); }
+a { color:#2563eb; text-decoration:none; font-size:1.4rem; font-weight:700; }
+a:hover { text-decoration:underline; }
+@keyframes swing { 0%{transform:rotate(-5deg);} 50%{transform:rotate(5deg);} 100%{transform:rotate(-5deg);} }
+.contact-box { max-width:720px; margin:1px auto 0; padding:16px; }
+.input,.textarea{ width:100%; padding:14px 12px; margin:0 0 10px; border:1px solid #d1d5db; border-radius:12px; font-size:1rem; }
+.textarea{ resize:vertical; }
+.btn{ margin-top:10px; padding:12px 18px; border-radius:12px; border:2px solid #d1d5db; background:#fff; cursor:pointer; font-weight:700; color:black; box-shadow:0 4px 10px rgba(0,0,0,.06); }
+#msgStatus{ margin-top:8px; font-size:.95rem; }
 </style>
 
 <script>
@@ -216,61 +126,78 @@ window.addEventListener("load", function () {
     <div><span id="vreme"></span></div>
   </div>
 
+  <!-- Kontakt forma -->
+  <div class="contact-box">
+    <div style="margin-bottom:8px;font-weight:700;">POŠALJITE PORUKU</div>
+    <form id="msgForm">
+      <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
+      <input class="input" type="text" name="kontakt" placeholder="Kontakt (telefon ili e-pošta, opcionalno)" />
+      <textarea class="textarea" name="poruka" placeholder="Vaša poruka" rows="5" required></textarea>
+      <button class="btn" type="submit">Pošalji poruku</button>
+      <div id="msgStatus"></div>
+    </form>
+  </div>
 
-
- <!-- Kontakt forma -->
-<div class="contact-box">
-  <div style="margin-bottom:8px;font-weight:700;">POŠALJITE PORUKU</div>
-  <form id="msgForm">
-    <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
-    <input class="input" type="text" name="kontakt" placeholder="Kontakt (telefon ili e-pošta, opcionalno)" />
-    <textarea class="textarea" name="poruka" placeholder="Vaša poruka" rows="5" required></textarea>
-    <button class="btn" type="submit">Pošalji poruku</button>
-    <div id="msgStatus"></div>
-  </form>
-</div>
-
-     <!-- Akcije -->
+  <!-- Akcije -->
   <div class="actions">
     <a href="/admin">Admin</a>
   </div>
 </div>
-  <script>
-   const form = document.getElementById('msgForm');
-  const statusEl = document.getElementById('msgStatus');
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    statusEl.textContent = 'Šaljem...';
+<!-- ⬇️ NOVI/IZMIJENJENI JS: pokreće call ili mail -->
+<script>
+const form = document.getElementById('msgForm');
+const statusEl = document.getElementById('msgStatus');
 
-    const data = {
-      ime: form.ime.value.trim(),
-      kontakt: (form.kontakt?.value || '').trim(),   // NOVO
-      poruka: form.poruka.value.trim()
-    };
-    if (!data.poruka) {
-      statusEl.textContent = 'Poruka je obavezna.';
-      return;
-    }
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  statusEl.textContent = 'Šaljem...';
 
-    try {
-      const res = await fetch('/posalji_poruku', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-      });
-      const out = await res.json();
-      if (out.ok) {
-        statusEl.textContent = out.warning ? ('Poslato. ⚠ ' + out.warning) : 'Poruka poslata. Hvala!';
+  const data = {
+    ime: form.ime.value.trim(),
+    kontakt: (form.kontakt?.value || '').trim(),
+    poruka: form.poruka.value.trim()
+  };
+  if (!data.poruka) {
+    statusEl.textContent = 'Poruka je obavezna.';
+    return;
+  }
+
+  try {
+    const res = await fetch('/posalji_poruku', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    const out = await res.json();
+
+    if (out.ok) {
+      // ako je telefon – odmah pokreni poziv
+      if (out.tel_uri) {
+        statusEl.textContent = 'Prepoznat je broj — pokrećem poziv...';
+        // mali timeout da korisnik vidi poruku prije preusmjeravanja (opciono)
+        setTimeout(() => { window.location.href = out.tel_uri; }, 150);
         form.reset();
-      } else {
-        statusEl.textContent = out.error || 'Greška pri slanju.';
+        return;
       }
-    } catch (err) {
-      statusEl.textContent = 'Greška u mreži. Pokušajte ponovo.';
+      // ako je email – otvori mail klijent
+      if (out.email) {
+        statusEl.textContent = 'Prepoznata je e-pošta — otvaram mail klijent...';
+        setTimeout(() => { window.location.href = 'mailto:' + out.email; }, 150);
+        form.reset();
+        return;
+      }
+      // inače samo potvrdi slanje
+      statusEl.textContent = out.warning ? ('Poslato. ⚠ ' + out.warning) : 'Poruka poslata. Hvala!';
+      form.reset();
+    } else {
+      statusEl.textContent = out.error || 'Greška pri slanju.';
     }
-  });
-  </script>
+  } catch (err) {
+    statusEl.textContent = 'Greška u mreži. Pokušajte ponovo.';
+  }
+});
+</script>
 
 </body>
 </html>
