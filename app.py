@@ -445,7 +445,6 @@ def posalji_poruku():
         return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
 
     return jsonify(ok=True), 200
-
 @app.route("/potvrdi_termin", methods=["GET", "POST"])
 def potvrdi_termin():
     # GET: forma sa flatpickr
@@ -532,10 +531,10 @@ flatpickr("#dt", {{
     telefon_norm = normalize_phone(telefon_raw) or telefon_raw
     when_txt = dt_local.strftime("%d.%m.%Y u %H:%M")
 
-    # LOKACIJA (Google Maps link koji prikazujemo i šaljemo u kalendar)
+    # LOKACIJA (Google Maps link)
     maps_link = "https://maps.app.goo.gl/6L27g5GLfUGxs2fD8"
 
-    # ICS link (ka tvojoj /event.ics ruti)
+    # ICS link (ka /event.ics)
     ics_qs = urllib.parse.urlencode({
         "title": f"Termin — {ime or 'Pacijent'}",
         "start": dt_local.strftime("%Y-%m-%d %H:%M"),
@@ -545,7 +544,7 @@ flatpickr("#dt", {{
     })
     ics_url = request.url_root.rstrip("/") + "/event.ics?" + ics_qs
 
-    # Google Calendar link (UTC format)
+    # Google Calendar link (UTC)
     start_utc = dt_local.astimezone(ZoneInfo("UTC"))
     end_utc   = (dt_local + timedelta(minutes=duration_min)).astimezone(ZoneInfo("UTC"))
     gcal_qs = urllib.parse.urlencode({
@@ -558,20 +557,20 @@ flatpickr("#dt", {{
     })
     google_url = f"https://calendar.google.com/calendar/render?{gcal_qs}"
 
-  # Tekst i HTML maila
-body_txt = (
-    "Termin kod stomatologa\n\n"
-    f"Ime i prezime: {ime or '—'}\n"
-    f"E-pošta: {email or '—'}\n"
-    f"Telefon: {telefon_norm or '—'}\n"
-    f"Termin: {when_txt} (Europe/Podgorica)\n"
-    f"Napomena: {napomena or '—'}\n\n"
-    f"Dodaj u kalendar (.ics): {ics_url}\n"
-    f"Dodaj u Google Kalendar: {google_url}\n"
-    f"Lokacija (Google Maps): {maps_link}\n"
-)
+    # Tekst i HTML maila
+    body_txt = (
+        "Termin kod stomatologa\n\n"
+        f"Ime i prezime: {ime or '—'}\n"
+        f"E-pošta: {email or '—'}\n"
+        f"Telefon: {telefon_norm or '—'}\n"
+        f"Termin: {when_txt} (Europe/Podgorica)\n"
+        f"Napomena: {napomena or '—'}\n\n"
+        f"Dodaj u kalendar (.ics): {ics_url}\n"
+        f"Dodaj u Google Kalendar: {google_url}\n"
+        f"Lokacija (Google Maps): {maps_link}\n"
+    )
 
-body_html = f"""
+    body_html = f"""
 <html><body style="font-family:Arial,sans-serif; font-size:14px; color:#111;">
   <h2>
     Termin kod stomatologa — {html.escape(when_txt)}
@@ -605,47 +604,49 @@ body_html = f"""
   </p>
 </body></html>
 """
-# priprema i slanje maila (+ priložimo .ics za bolju kompatibilnost)
-user   = os.environ.get("GMAIL_USER")
-app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
-if not user or not app_pw:
-    return "Mail nije konfigurisan (GMAIL_USER/GMAIL_APP_PASSWORD).", 200
 
-ics_text = build_ics(
-    summary=f"Termin — {ime or 'Pacijent'}",
-    dt_local=dt_local,
-    duration_min=duration_min,
-    description=napomena or "",
-    location=maps_link,
-)
+    # priprema i slanje maila (+ priložimo .ics za bolju kompatibilnost)
+    user   = os.environ.get("GMAIL_USER")
+    app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
+    if not user or not app_pw:
+        return "Mail nije konfigurisan (GMAIL_USER/GMAIL_APP_PASSWORD).", 200
 
-try:
-    msg = EmailMessage()
-    msg["From"] = formataddr(("POTVRDA TERMINA", user))
-    msg["To"] = "dentalabplaner@gmail.com"
-    if email:
-        msg["Cc"] = email
-        msg["Reply-To"] = email
-    msg["Subject"] = f"{ime or 'Pacijent'}, Vaš termin je zakazan — {when_txt}"
-
-    msg.set_content(body_txt)
-    msg.add_alternative(body_html, subtype="html")
-    msg.add_attachment(
-        ics_text.encode("utf-8"),
-        maintype="text",
-        subtype="calendar",
-        filename="termin.ics",
+    ics_text = build_ics(
+        summary=f"Termin — {ime or 'Pacijent'}",
+        dt_local=dt_local,
+        duration_min=duration_min,
+        description=napomena or "",
+        location=maps_link,
     )
 
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
-        smtp.login(user, app_pw)
-        smtp.send_message(msg)
-except Exception as e:
-    print(f"Mail error (potvrdi_termin): {e}", flush=True)
-    return "Greška pri slanju e-pošte.", 500
+    try:
+        msg = EmailMessage()
+        msg["From"] = formataddr(("POTVRDA TERMINA", user))
+        msg["To"] = "dentalabplaner@gmail.com"
+        if email:
+            msg["Cc"] = email
+            msg["Reply-To"] = email
+        msg["Subject"] = f"{ime or 'Pacijent'}, Vaš termin je zakazan — {when_txt}"
 
-return "Termin je potvrđen. Hvala!", 200
+        msg.set_content(body_txt)
+        msg.add_alternative(body_html, subtype="html")
+        msg.add_attachment(
+            ics_text.encode("utf-8"),
+            maintype="text",
+            subtype="calendar",
+            filename="termin.ics",
+        )
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
+            smtp.login(user, app_pw)
+            smtp.send_message(msg)
+    except Exception as e:
+        print(f"Mail error (potvrdi_termin): {e}", flush=True)
+        return "Greška pri slanju e-pošte.", 500
+
+    return "Termin je potvrđen. Hvala!", 200
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5098))
