@@ -2,9 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, s
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from email.utils import formataddr
-import urllib.parse
-import html
-import json, os, re, html
+
+import json, os, re, html, urllib.parse
 import smtplib, ssl, csv
 from email.message import EmailMessage
 
@@ -156,6 +155,10 @@ def classify_kontakt(k):
         return ("phone", phone)
     return ("text", k)
 
+def build_mailto(to_email: str, subject: str, body: str) -> str:
+    qs = {"subject": subject, "body": body}
+    return f"mailto:{to_email}?{urllib.parse.urlencode(qs)}"
+
 @app.route("/")
 def index():
     sada = now_podgorica()
@@ -246,12 +249,7 @@ def obrisi(datum):
         del posebni[datum]
         sacuvaj_posebne_datume(posebni)
     return redirect(url_for("admin"))
-def build_mailto(to_email: str, subject: str, body: str) -> str:
-    qs = {
-        "subject": subject,
-        "body": body
-    }
-    return f"mailto:{to_email}?{urllib.parse.urlencode(qs)}"
+
 @app.route("/posalji_poruku", methods=["POST"])
 def posalji_poruku():
     # --- Ulazni podaci ---
@@ -349,7 +347,6 @@ def posalji_poruku():
         return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
 
     return jsonify(ok=True), 200
-
 
 # --- Pomoćne rute za CSV (opciono) ---
 @app.get("/csv_debug")
