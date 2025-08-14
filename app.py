@@ -3,7 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from email.utils import formataddr
 
-import json, os
+import json, os, re
 # NOVO:
 import smtplib, ssl, csv
 from email.message import EmailMessage
@@ -12,6 +12,7 @@ app = Flask(__name__, template_folder="templates")
 
 # --- podesiva putanja za CSV (na Renderu koristi /data/poruke.csv) ---
 CSV_PATH = os.environ.get("CSV_PATH") or os.path.join(app.instance_path, "poruke.csv")
+DEFAULT_COUNTRY_CODE = os.environ.get("DEFAULT_COUNTRY_CODE", "+382")
 
 # --- CSV init: napravi fajl sa headerom ako ne postoji ---
 def ensure_csv():
@@ -53,7 +54,6 @@ def ucitaj_posebne_datume():
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # očekujemo dict: {"YYYY-MM-DD": [start, end] ili [null, null]}
             if isinstance(data, dict):
                 return data
             return {}
@@ -66,16 +66,24 @@ def sacuvaj_posebne_datume(data):
 
 def to_int_or_none(x):
     try:
-        # dozvoli i decimalu ako neko unese "10.5" → zaokruži ili vrati int?
-        # zadržavamo int, admin forma neka šalje cijele sate; decimalna podrška ide kroz data.json
         return int(x)
     except (ValueError, TypeError):
         return None
+
+def to_minutes(h):
+    """Za provjeru otvoreno/zatvoreno koristimo minute, zaokružene na najbliži minut."""
+    if h is None:
+        return None
+    try:
+        return int(round(float(h) * 60))
+    except Exception:
+        return None
+
 def sat_label(h):
     """
-    Formatira sat:
-    - ako je pun sat -> "HH"
-    - ako ima minute -> "HH:MM"
+    Format:
+    - pun sat -> 'HH'
+    - ima minuta -> 'HH:MM'
     """
     try:
         if h is None:
@@ -89,6 +97,47 @@ def sat_label(h):
     except Exception:
         return str(h)
 
+# --- kontakt helperi ---
+def is_email(s: str) -> bool:
+    if not s:
+        return False
+    return "@" in s and "." in s.split("@")[-1]
+
+def normalize_phone(raw: str) -> str | None:
+    if not raw:
+        return None
+    # zadrži samo + i cifre
+    s = re.sub(r"[^\d+]", "", raw)
+
+    # saniraj višak '+'
+    if s.count("+") > 1:
+        s = re.sub(r"\++", "+", s)
+    if "+" in s[1:]:
+        s = s[0] + s[1:].replace("+", "")
+
+    # dodaj pozivni ako počinje nulom i nema '+'
+    if s and s[0] == "0" and not s.startswith("+") and DEFAULT_COUNTRY_CODE:
+        s = DEFAULT_COUNTRY_CODE + s.lstrip("0")
+
+    digits = re.sub(r"\D", "", s)
+    if len(digits) < 7:
+        return None
+    return s
+
+def classify_kontakt(k: str) -> tuple[str, str]:
+    """
+    Vraca (tip, vrijednost):
+    - ("email", email) / ("phone", broj) / ("text", original)
+    """
+    k = (k or "").strip()
+    if not k:
+        return ("text", "")
+    if is_email(k):
+        return ("email", k)
+    phone = normalize_phone(k)
+    if phone:
+        return ("phone", phone)
+    return ("text", k)
 
 @app.route("/")
 def index():
@@ -109,18 +158,20 @@ def index():
     ps = posebni.get(datum_str)
 
     if isinstance(ps, (list, tuple)) and len(ps) == 2:
-        # u JSON-u može biti npr. [10, 13.5] ili [null, null]
         start = ps[0] if ps[0] is not None else None
         end   = ps[1] if ps[1] is not None else None
 
-    # odredi status i poruku
-    if start is None or end is None:
+    # provjera u minutama (robustno na float)
+    start_m = to_minutes(start) if start is not None else None
+    end_m   = to_minutes(end)   if end   is not None else None
+
+    if start_m is None or end_m is None:
         poruka_html = "Danas je neradni dan."
         poruka_tts  = "Danas je neradni dan."
         status_slika = "close1.png"
     else:
-        sat = sada.hour + sada.minute / 60
-        otvoreno_sad = (float(start) <= sat < float(end))
+        now_m = sada.hour * 60 + sada.minute
+        otvoreno_sad = (start_m <= now_m < end_m)
         if otvoreno_sad:
             linije = [
                 "Ordinacija je trenutno otvorena.",
@@ -191,9 +242,19 @@ def posalji_poruku():
 
     now = now_podgorica()
 
+    # Klasifikacija kontakt polja
+    kontakt_tip, kontakt_val = classify_kontakt(kontakt)
+
+    if kontakt_tip == "email":
+        kontakt_linija = f"E-mail: {kontakt_val}"
+    elif kontakt_tip == "phone":
+        kontakt_linija = f"Telefon: {kontakt_val}"
+    else:
+        kontakt_linija = f"Kontakt: {kontakt_val or '—'}"
+
     body = (
         f"Ime i prezime: {ime or '—'}\n"
-        f"Kontakt: {kontakt or '—'}\n\n"
+        f"{kontakt_linija}\n\n"
         f"Poruka:\n{poruka}\n\n"
         f"Vrijeme: {now.isoformat()}\n"
         f"IP: {request.remote_addr}\n"
@@ -225,9 +286,13 @@ def posalji_poruku():
         msg["Subject"] = f"[Kontakt sa sajta] {ime or 'Anonimno'} — {now.strftime('%d.%m.%Y %H:%M')}"
         msg.set_content(body)
 
-        # Ako je korisnik upisao e-mail u "kontakt", Reply-To na njega:
-        if kontakt and "@" in kontakt:
-            msg["Reply-To"] = kontakt
+        # Reply-To ako je e-mail
+        if kontakt_tip == "email" and kontakt_val:
+            msg["Reply-To"] = kontakt_val
+
+        # (Opcionalno) telefon u custom headeru
+        if kontakt_tip == "phone" and kontakt_val:
+            msg["X-Contact-Phone"] = kontakt_val
 
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
