@@ -330,6 +330,7 @@ def posalji_poruku():
     now = now_podgorica()
     kontakt_tip, kontakt_val = classify_kontakt(kontakt)
 
+    # linije za plain text
     if kontakt_tip == "email":
         kontakt_linija_txt = f"E-mail: {kontakt_val}"
         kontakt_link_html  = f'<a href="mailto:{html.escape(kontakt_val)}" style="color:#2563eb;text-decoration:none;">{html.escape(kontakt_val)}</a>'
@@ -348,7 +349,8 @@ def posalji_poruku():
         f"Vrijeme: {now.isoformat()}\n"
         f"IP: {request.remote_addr or ''}\n"
     )
-    
+
+    # link za prefill potvrde termina (nije .ics ovdje)
     url_base = request.url_root.rstrip("/")
     confirm_qs = urllib.parse.urlencode({
         "ime": ime or "",
@@ -364,7 +366,7 @@ def posalji_poruku():
         'Potvrdi termin</a>'
     )
 
-    # Brzi odgovori – samo ako imamo PRIMAOCA
+    # brzi odgovori – ako nemamo e-mail korisnika, šalji na tvoj inbox
     mail_to = "dentalabplaner@gmail.com"
     quick_reply_to = kontakt_val if (kontakt_tip == "email" and kontakt_val) else mail_to
 
@@ -372,7 +374,6 @@ def posalji_poruku():
         qs = {"subject": subject, "body": body}
         return f"mailto:{to_email}?{urllib.parse.urlencode(qs)}"
 
-    # Linkovi (uvijek rade: ako nema korisnikovog e-maila, idu na tvoj inbox)
     hvala_link = build_mailto(
         quick_reply_to,
         f"Hvala na poruci – {ime or 'poštovani/na'}",
@@ -383,34 +384,39 @@ def posalji_poruku():
         f"Vaša poruka je prosleđena – {ime or 'poštovani/na'}",
         "Vašu poruku smo prosledili nadležnom timu/doktoru. Javićemo Vam se čim dobijemo povratnu informaciju.\n\n— DENTALAB"
     )
-body_html = f"""
-<html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
-  <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
-  <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
-  <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
-  <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
-  <p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
-  <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
 
-  <p style="margin:12px 0;">
-    <a href="{html.escape(ics_url)}" style="display:inline-block;background:#111827;color:#fff;
-       padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
-       Dodaj u kalendar (.ics)
-    </a>
-  </p>
-</body></html>
-"""
-# CSV zapis
-try:
+    # HTML mail – bez ics_url/when_txt/email/telefon_norm (to je u /potvrdi_termin)
+    body_html = f"""
+    <html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
+      <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
+      <p><b>Kontakt:</b> {kontakt_link_html}</p>
+      <p><b>Poruka:</b><br>{html.escape(poruka).replace('\\n','<br>')}</p>
+      <hr style="border:none;border-top:1px solid #ddd;margin:12px 0">
+      <p style="color:#555;">
+        Vrijeme: {html.escape(now.isoformat())}<br>
+        IP: {html.escape(request.remote_addr or '')}
+      </p>
+      <div style="margin:20px 0;text-align:center;">
+        {confirm_btn_html}
+      </div>
+      <p style="margin-top:20px;color:#555;">Brzi odgovori:</p>
+      <ul style="list-style:none;padding:0;margin:0;">
+        <li style="margin:6px 0;"><a href="{html.escape(hvala_link)}" style="color:#2563eb;text-decoration:none;">Hvala</a></li>
+        <li style="margin:6px 0;"><a href="{html.escape(prosledjujem_link)}" style="color:#2563eb;text-decoration:none;">Prosleđujem</a></li>
+      </ul>
+    </body></html>
+    """
+
+    # CSV zapis (ISPRAVNA UVLAKA!)
+    try:
         newfile = not os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
+            w = csv.writer(f)
             if newfile:
-                writer.writerow(["Ime", "E-pošta", "Telefon", "Datum/vrijeme", "Napomena"])
-            writer.writerow([ime, email, telefon_norm, when_txt, napomena])
+                w.writerow(["datetime", "ime", "kontakt", "ip", "poruka"])
+            w.writerow([now.isoformat(), ime, kontakt, request.remote_addr or "", poruka])
     except Exception as e:
-        print(f"CSV error: {e}", flush=True)
-
+        print(f"CSV write error: {e}", flush=True)
 
     # Slanje e-maila
     user   = os.environ.get("GMAIL_USER")
@@ -440,6 +446,7 @@ try:
         return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
 
     return jsonify(ok=True), 200
+
 @app.route("/potvrdi_termin", methods=["GET", "POST"])
 def potvrdi_termin():
     # GET: forma sa flatpickr
