@@ -549,19 +549,19 @@ def potvrdi_termin():
 from datetime import timedelta
 import urllib.parse
 
-start_utc = dt_local.astimezone(ZoneInfo("UTC"))
-end_utc = (dt_local + timedelta(minutes=duration_min)).astimezone(ZoneInfo("UTC"))
+    # --- Google Calendar link (koristi UTC i format YYYYMMDDTHHMMSSZ/...) ---
+    start_utc = dt_local.astimezone(ZoneInfo("UTC"))
+    end_utc = (dt_local + timedelta(minutes=duration_min)).astimezone(ZoneInfo("UTC"))
 
-gcal_qs = urllib.parse.urlencode({
-    "action":  "TEMPLATE",
-    "text":    f"Termin — {ime or 'Pacijent'}",
-    "dates":   f"{start_utc:%Y%m%dT%H%M%SZ}/{end_utc:%Y%m%dT%H%M%SZ}",
-    "details": napomena or "",
-    "location":"Dentalab, Podgorica",
-    "ctz":     "Europe/Podgorica",
-}, quote_via=urllib.parse.quote)
-
-google_url = f"https://calendar.google.com/calendar/render?{gcal_qs}"
+    gcal_qs = urllib.parse.urlencode({
+        "action": "TEMPLATE",
+        "text": f"Termin — {ime or 'Pacijent'}",
+        "dates": f"{start_utc.strftime('%Y%m%dT%H%M%SZ')}/{end_utc.strftime('%Y%m%dT%H%M%SZ')}",
+        "details": napomena or "",
+        "location": "Dentalab, Podgorica",
+        "ctz": "Europe/Podgorica"
+    })
+    google_url = f"https://calendar.google.com/calendar/render?{gcal_qs}"
 
     # plain tekst
     body_txt = (
@@ -573,10 +573,9 @@ google_url = f"https://calendar.google.com/calendar/render?{gcal_qs}"
         f"Napomena: {napomena or '—'}\n\n"
         f"Dodaj u kalendar (.ics): {ics_url}\n"
         f"Dodaj u Google Kalendar: {google_url}\n"
-
     )
 
-    # HTML (sa dugmetom “Dodaj u kalendar”)
+    # HTML (sa dugmadima za .ics i Google)
     body_html = f"""
     <html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
       <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
@@ -592,14 +591,13 @@ google_url = f"https://calendar.google.com/calendar/render?{gcal_qs}"
            Dodaj u kalendar (.ics)
         </a>
       </p>
-      <p style="margin:6px 0;">
-  <a href="{html.escape(google_url)}" target="_blank" rel="noopener"
-     style="display:inline-block;background:#1a73e8;color:#fff;
-     padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
-     Dodaj u Google Kalendar
-  </a>
-</p>
 
+      <p style="margin:12px 0;">
+        <a href="{html.escape(google_url)}" style="display:inline-block;background:#1a73e8;color:#fff;
+           padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
+           Dodaj u Google Kalendar
+        </a>
+      </p>
     </body></html>
     """
 
