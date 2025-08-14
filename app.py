@@ -558,50 +558,54 @@ flatpickr("#dt", {{
     })
     google_url = f"https://calendar.google.com/calendar/render?{gcal_qs}"
 
-    # Tekst i HTML maila
-    body_txt = (
-        "Termin kod stomatologa\n\n"
-        f"Ime i prezime: {ime or '—'}\n"
-        f"E-pošta: {email or '—'}\n"
-        f"Telefon: {telefon_norm or '—'}\n"
-        f"Termin: {when_txt} (Europe/Podgorica)\n"
-        f"Napomena: {napomena or '—'}\n\n"
-        f"Dodaj u kalendar (.ics): {ics_url}\n"
-        f"Dodaj u Google Kalendar: {google_url}\n"
-        f"Lokacija (Google Maps): {maps_link}\n"
-    )
+  # Tekst i HTML maila
+body_txt = (
+    "Termin kod stomatologa\n\n"
+    f"Ime i prezime: {ime or '—'}\n"
+    f"E-pošta: {email or '—'}\n"
+    f"Telefon: {telefon_norm or '—'}\n"
+    f"Termin: {when_txt} (Europe/Podgorica)\n"
+    f"Napomena: {napomena or '—'}\n\n"
+    f"Dodaj u kalendar (.ics): {ics_url}\n"
+    f"Dodaj u Google Kalendar: {google_url}\n"
+    f"Lokacija (Google Maps): {maps_link}\n"
+)
 
-    body_html = f"""
-    <html><body style="font-family:Arial,sans-serif; font-size:14px; color:#111;">
-      <h2>Termin kod stomatologa</h2>
-      <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
-      <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
-      <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
-      <p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
-      <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
+body_html = f"""
+<html><body style="font-family:Arial,sans-serif; font-size:14px; color:#111;">
+  <h2>
+    Termin kod stomatologa — {html.escape(when_txt)}
+    <span style="color:#6b7280; font-size:14px;">(Europe/Podgorica)</span>
+  </h2>
 
-      <p style="margin:12px 0;">
-        <a href="{html.escape(ics_url)}" style="display:inline-block;background:#111827;color:#fff;
-           padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
-           Dodaj u kalendar (.ics)
-        </a>
-      </p>
+  <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
+  <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
+  <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
+  <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
 
-      <p style="margin:12px 0;">
-        <a href="{html.escape(google_url)}" style="display:inline-block;background:#1a73e8;color:#fff;
-           padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
-           Dodaj u Google Kalendar
-        </a>
-      </p>
+  <p style="margin:12px 0;">
+    <a href="{html.escape(ics_url)}" style="display:inline-block;background:#111827;color:#fff;
+       padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
+       Dodaj u kalendar (.ics)
+    </a>
+  </p>
 
-      <p style="margin:12px 0;">
-        <a href="{html.escape(maps_link)}" style="display:inline-block;background:#10b981;color:#fff;
-           padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
-           Otvori lokaciju (Google Maps)
-        </a>
-      </p>
-    </body></html>
-    """
+  <p style="margin:12px 0;">
+    <a href="{html.escape(google_url)}" style="display:inline-block;background:#1a73e8;color:#fff;
+       padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
+       Dodaj u Google Kalendar
+    </a>
+  </p>
+
+  <p style="margin:12px 0;">
+    <a href="{html.escape(maps_link)}" style="display:inline-block;background:#10b981;color:#fff;
+       padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">
+       Otvori lokaciju (Google Maps)
+    </a>
+  </p>
+</body></html>
+"""
+
 
     # Slanje emaila (+ .ics kao prilog)
     user = os.environ.get("GMAIL_USER")
