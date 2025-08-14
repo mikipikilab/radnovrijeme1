@@ -4,7 +4,6 @@ from zoneinfo import ZoneInfo
 from email.utils import formataddr
 
 import json, os, re
-# NOVO:
 import smtplib, ssl, csv
 from email.message import EmailMessage
 
@@ -98,7 +97,7 @@ def sat_label(h):
         return str(h)
 
 # --- kontakt helperi ---
-def is_email(s: str) -> bool:
+def is_email(s):
     if not s:
         return False
     return "@" in s and "." in s.split("@")[-1]
@@ -106,11 +105,10 @@ def is_email(s: str) -> bool:
 def normalize_phone(raw):
     """
     Normalizuje telefon:
-    - dozvoljava cifre, razmake, +, (, ), -
+    - dozvoljava cifre i '+'
     - 00xx pretvara u +xx
-    - broj koji počinje nulom: ako je DEFAULT_COUNTRY_CODE postavljen -> doda se pozivni,
-      u suprotnom ostavlja se nacionalni format sa vodećom nulom
-    - vraća None ako nema dovoljno cifara
+    - ako počinje nulom bez '+', a DEFAULT_COUNTRY_CODE je postavljen -> doda se pozivni
+    - vraća None ako nema najmanje 7 cifara
     """
     if not raw:
         return None
@@ -118,7 +116,6 @@ def normalize_phone(raw):
     # zadrži samo + i cifre
     s = re.sub(r"[^\d+]", "", raw)
 
-    # ako je sve obrisano
     if not s:
         return None
 
@@ -126,33 +123,27 @@ def normalize_phone(raw):
     if s.startswith("00"):
         s = "+" + s[2:]
 
-    # saniraj višak '+' (dozvoljen je samo na početku)
+    # saniraj višak '+'
     if s.count("+") > 1:
         s = re.sub(r"\++", "+", s)
     if "+" in s[1:]:
         s = s[0] + s[1:].replace("+", "")
 
-    # ako počinje nulom i nema '+'
-    if s.startswith("0") and not s.startswith("+"):
-        if DEFAULT_COUNTRY_CODE:
-            # npr. "067123456" -> "+38267123456"
-            s = DEFAULT_COUNTRY_CODE + s.lstrip("0")
-        else:
-            # ostavi nacionalni format "067123456"
-            pass
+    # ako počinje '0' i nema '+', dodaj pozivni (ako je definisan)
+    if s.startswith("0") and not s.startswith("+") and DEFAULT_COUNTRY_CODE:
+        s = DEFAULT_COUNTRY_CODE + s.lstrip("0")
 
     # minimalno 7 cifara
-    digits = re.sub(r"\D", "", s if s.startswith("+") else s)
+    digits = re.sub(r"\D", "", s)
     if len(digits) < 7:
         return None
 
     return s
 
-
-def classify_kontakt(k: str) -> tuple[str, str]:
+def classify_kontakt(k):
     """
-    Vraca (tip, vrijednost):
-    - ("email", email) / ("phone", broj) / ("text", original)
+    Vraća (tip, vrijednost):
+    - ("email", email) / ("phone", normalizovan_broj) / ("text", original)
     """
     k = (k or "").strip()
     if not k:
@@ -302,7 +293,14 @@ def posalji_poruku():
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
 
     if not user or not app_pw:
-        return jsonify(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
+        # i dalje vrati info za call/mail na frontend
+        resp = {"ok": True, "warning": "Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni).", "kontakt_tip": kontakt_tip}
+        if kontakt_tip == "phone" and kontakt_val:
+            resp["telefon_norm"] = kontakt_val
+            resp["tel_uri"] = "tel:" + re.sub(r"[^\d+]", "", kontakt_val)
+        elif kontakt_tip == "email" and kontakt_val:
+            resp["email"] = kontakt_val
+        return jsonify(resp), 200
 
     try:
         msg = EmailMessage()
@@ -326,9 +324,23 @@ def posalji_poruku():
 
     except Exception as e:
         print(f"Mail error: {e}", flush=True)
-        return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
+        # čak i ako mail padne, vrati info za call/mail na frontend
+        resp = {"ok": True, "warning": f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}", "kontakt_tip": kontakt_tip}
+        if kontakt_tip == "phone" and kontakt_val:
+            resp["telefon_norm"] = kontakt_val
+            resp["tel_uri"] = "tel:" + re.sub(r"[^\d+]", "", kontakt_val)
+        elif kontakt_tip == "email" and kontakt_val:
+            resp["email"] = kontakt_val
+        return jsonify(resp), 200
 
-    return jsonify(ok=True), 200
+    # Uspješno
+    resp = {"ok": True, "kontakt_tip": kontakt_tip}
+    if kontakt_tip == "phone" and kontakt_val:
+        resp["telefon_norm"] = kontakt_val
+        resp["tel_uri"] = "tel:" + re.sub(r"[^\d+]", "", kontakt_val)
+    elif kontakt_tip == "email" and kontakt_val:
+        resp["email"] = kontakt_val
+    return jsonify(resp), 200
 
 # --- Pomoćne rute za CSV (opciono) ---
 @app.get("/csv_debug")
