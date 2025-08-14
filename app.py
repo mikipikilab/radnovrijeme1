@@ -605,50 +605,47 @@ body_html = f"""
   </p>
 </body></html>
 """
-
-
 # priprema i slanje maila (+ priložimo .ics za bolju kompatibilnost)
 user   = os.environ.get("GMAIL_USER")
 app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
-    if not user or not app_pw:
-        return "Mail nije konfigurisan (GMAIL_USER/GMAIL_APP_PASSWORD).", 200
+if not user or not app_pw:
+    return "Mail nije konfigurisan (GMAIL_USER/GMAIL_APP_PASSWORD).", 200
 
-    ics_text = build_ics(
-        summary=f"Termin — {ime or 'Pacijent'}",
-        dt_local=dt_local,
-        duration_min=duration_min,
-        description=napomena or "",
-        location=maps_link,
+ics_text = build_ics(
+    summary=f"Termin — {ime or 'Pacijent'}",
+    dt_local=dt_local,
+    duration_min=duration_min,
+    description=napomena or "",
+    location=maps_link,
+)
+
+try:
+    msg = EmailMessage()
+    msg["From"] = formataddr(("POTVRDA TERMINA", user))
+    msg["To"] = "dentalabplaner@gmail.com"
+    if email:
+        msg["Cc"] = email
+        msg["Reply-To"] = email
+    msg["Subject"] = f"{ime or 'Pacijent'}, Vaš termin je zakazan — {when_txt}"
+
+    msg.set_content(body_txt)
+    msg.add_alternative(body_html, subtype="html")
+    msg.add_attachment(
+        ics_text.encode("utf-8"),
+        maintype="text",
+        subtype="calendar",
+        filename="termin.ics",
     )
 
-    try:
-        msg = EmailMessage()
-        msg["From"] = formataddr(("POTVRDA TERMINA", user))
-        msg["To"] = "dentalabplaner@gmail.com"
-        if email:
-            msg["Cc"] = email
-            msg["Reply-To"] = email
-        msg["Subject"] = f"{ime or 'Pacijent'}, Vaš termin je zakazan — {when_txt}"
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
+        smtp.login(user, app_pw)
+        smtp.send_message(msg)
+except Exception as e:
+    print(f"Mail error (potvrdi_termin): {e}", flush=True)
+    return "Greška pri slanju e-pošte.", 500
 
-        msg.set_content(body_txt)
-        msg.add_alternative(body_html, subtype="html")
-        msg.add_attachment(
-            ics_text.encode("utf-8"),
-            maintype="text",
-            subtype="calendar",
-            filename="termin.ics",
-        )
-
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
-            smtp.login(user, app_pw)
-            smtp.send_message(msg)
-    except Exception as e:
-        print(f"Mail error (potvrdi_termin): {e}", flush=True)
-        return "Greška pri slanju e-pošte.", 500
-
-    return "Termin je potvrđen. Hvala!", 200
-
+return "Termin je potvrđen. Hvala!", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5098))
