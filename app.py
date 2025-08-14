@@ -446,71 +446,71 @@ def potvrdi_termin():
 </html>
 """
         return html_form
+# POST: primi izbor, pošalji mejl sa potvrdom termina
+ime = (request.form.get("ime") or "").strip()
+email = (request.form.get("email") or "").strip()
+telefon_raw = (request.form.get("telefon") or "").strip()
+napomena = (request.form.get("napomena") or "").strip()
+dt_str = (request.form.get("dt") or "").strip()
 
-    # POST: primi izbor, pošalji mejl sa potvrdom termina
-    ime = (request.form.get("ime") or "").strip()
-    email = (request.form.get("email") or "").strip()
-    telefon_raw = (request.form.get("telefon") or "").strip()
-    napomena = (request.form.get("napomena") or "").strip()
-    dt_str = (request.form.get("dt") or "").strip()
+# Validacija datuma
+try:
+    # očekujemo "YYYY-MM-DD HH:MM"
+    dt_local = datetime.strptime(dt_str, "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Europe/Podgorica"))
+except Exception:
+    return "Neispravan datum/vrijeme.", 400
 
-    # Validacija datuma
-    try:
-        # očekujemo "YYYY-MM-DD HH:MM"
-        dt_local = datetime.strptime(dt_str, "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Europe/Podgorica"))
-    except Exception:
-        return "Neispravan datum/vrijeme.", 400
+# Normalizuj telefon (ako ima)
+telefon_norm = normalize_phone(telefon_raw) or telefon_raw
 
-    # Normalizuj telefon (ako ima)
-    telefon_norm = normalize_phone(telefon_raw) or telefon_raw
+# Sastavi mail (plain + HTML)
+when_txt = dt_local.strftime("%d.%m.%Y u %H:%M")
+body_txt = (
+    "Termin kod stomatologa\n\n"
+    f"Ime i prezime: {ime or '—'}\n"
+    f"E-pošta: {email or '—'}\n"
+    f"Telefon: {telefon_norm or '—'}\n"
+    f"Termin: {when_txt} (Europe/Podgorica)\n"
+    f"Napomena: {napomena or '—'}\n"
+)
+body_html = f"""
+<html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
+  <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
+  <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
+  <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
+  <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
+  <p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
+  <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
+</body></html>
+"""
 
-    # Sastavi mail (plain + HTML)
-    when_txt = dt_local.strftime("%d.%m.%Y u %H:%M")
-    body_txt = (
-        f"Termin kod stomatologa za \n\n"
-        f"Ime i prezime: {ime or '—'}\n"
-        f"E-pošta: {email or '—'}\n"
-        f"Telefon: {telefon_norm or '—'}\n"
-        f"Termin: {when_txt} (Europe/Podgorica)\n"
-        f"Napomena: {napomena or '—'}\n"
-    )
-    body_html = f"""
-    <html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
-      <h2 style="margin:0 0 8px;">Termin kod stomatologa</h2>
-      <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
-      <p><b>E-pošta:</b> {html.escape(email or '—')}</p>
-      <p><b>Telefon:</b> {html.escape(telefon_norm or '—')}</p>
-      <p><b>Termin:</b> {html.escape(when_txt)} <span style="color:#6b7280;">(Europe/Podgorica)</span></p>
-      <p><b>Napomena:</b><br>{html.escape(napomena or '—').replace('\\n','<br>')}</p>
-    </body></html>
-    """
+# Pošalji mejl (isti SMTP kao i ranije)
+user   = os.environ.get("GMAIL_USER")
+app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
+if not user or not app_pw:
+    return "Mail nije konfigurisan (GMAIL_USER/GMAIL_APP_PASSWORD).", 200
 
-    # Pošalji mejl (isti SMTP kao i ranije)
-    user   = os.environ.get("GMAIL_USER")
-    app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
-    if not user or not app_pw:
-        return "Mail nije konfigurisan (GMAIL_USER/GMAIL_APP_PASSWORD).", 200
+try:
+    msg = EmailMessage()
+    msg["From"] = formataddr(("POTVRDA TERMINA", user))
+    msg["To"] = "dentalabplaner@gmail.com"
+    if email:
+        msg["Cc"] = email  # kopija pacijentu ako je dao e-poštu
+        msg["Reply-To"] = email  # da odgovor ide direktno pacijentu
+    msg["Subject"] = f"{ime or 'Pacijent'}, Vaš termin kod stomatologa je zakazan — {when_txt}"
 
-    try:
-        msg = EmailMessage()
-        msg["From"] = formataddr(("POTVRDA TERMINA", user))
-        msg["To"] = "dentalabplaner@gmail.com"
-        if email:
-            msg["Cc"] = email  # kopija pacijentu ako je dao e-poštu
-        msg["Subject"] = f"{ime or 'Pacijent', Vaš termin kod stomatologa je zakazan  {when_txt}"
+    msg.set_content(body_txt)
+    msg.add_alternative(body_html, subtype="html")
 
-        msg.set_content(body_txt)
-        msg.add_alternative(body_html, subtype="html")
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
+        smtp.login(user, app_pw)
+        smtp.send_message(msg)
+except Exception as e:
+    print(f"Mail error (potvrdi_termin): {e}", flush=True)
+    return "Greška pri slanju e-pošte.", 500
 
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
-            smtp.login(user, app_pw)
-            smtp.send_message(msg)
-    except Exception as e:
-        print(f"Mail error (potvrdi_termin): {e}", flush=True)
-        return "Greška pri slanju e-pošte.", 500
-
-    return "Termin je potvrđen. Hvala!", 200
+return "Termin je potvrđen. Hvala!", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5098))
