@@ -281,8 +281,7 @@ def posalji_poruku():
         f"Vrijeme: {now.isoformat()}\n"
         f"IP: {request.remote_addr or ''}\n"
     )
-
-    # Dugme Potvrdi termin (prefill)
+    
     url_base = request.url_root.rstrip("/")
     confirm_qs = urllib.parse.urlencode({
         "ime": ime or "",
@@ -296,6 +295,26 @@ def posalji_poruku():
         'style="display:inline-block;background:#111827;color:#fff;'
         'padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700;">'
         'Potvrdi termin</a>'
+    )
+
+    # Brzi odgovori – samo ako imamo PRIMAOCA
+    mail_to = "dentalabplaner@gmail.com"
+    quick_reply_to = kontakt_val if (kontakt_tip == "email" and kontakt_val) else mail_to
+
+    def build_mailto(to_email: str, subject: str, body: str) -> str:
+        qs = {"subject": subject, "body": body}
+        return f"mailto:{to_email}?{urllib.parse.urlencode(qs)}"
+
+    # Linkovi (uvijek rade: ako nema korisnikovog e-maila, idu na tvoj inbox)
+    hvala_link = build_mailto(
+        quick_reply_to,
+        f"Hvala na poruci – {ime or 'poštovani/na'}",
+        "Hvala Vam na javljanju. Uskoro ćemo se povratno javiti.\n\n— DENTALAB"
+    )
+    prosledjujem_link = build_mailto(
+        quick_reply_to,
+        f"Vaša poruka je prosleđena – {ime or 'poštovani/na'}",
+        "Vašu poruku smo prosledili nadležnom timu/doktoru. Javićemo Vam se čim dobijemo povratnu informaciju.\n\n— DENTALAB"
     )
 
     body_html = f"""
@@ -312,9 +331,9 @@ def posalji_poruku():
         {confirm_btn_html}
       </div>
       <p style="margin-top:20px;color:#555;">Brzi odgovori:</p>
-      <ul style="list-style:none;padding:0;">
-        <li><a href="mailto:{html.escape(kontakt_val)}?subject=Hvala&body=Hvala na javljanju" style="color:#2563eb;">Hvala</a></li>
-        <li><a href="mailto:{html.escape(kontakt_val)}?subject=Prosleđujem&body=Prosleđujem Vašu poruku" style="color:#2563eb;">Prosleđujem</a></li>
+      <ul style="list-style:none;padding:0;margin:0;">
+        <li style="margin:6px 0;"><a href="{html.escape(hvala_link)}" style="color:#2563eb;text-decoration:none;">Hvala</a></li>
+        <li style="margin:6px 0;"><a href="{html.escape(prosledjujem_link)}" style="color:#2563eb;text-decoration:none;">Prosleđujem</a></li>
       </ul>
     </body></html>
     """
@@ -330,9 +349,9 @@ def posalji_poruku():
     except Exception as e:
         print(f"CSV write error: {e}", flush=True)
 
+    # Slanje e-maila
     user   = os.environ.get("GMAIL_USER")
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
-
     if not user or not app_pw:
         return jsonify(ok=True, warning="Mail nije poslat (GMAIL_USER/GMAIL_APP_PASSWORD nisu postavljeni)."), 200
 
@@ -343,6 +362,7 @@ def posalji_poruku():
         msg["Subject"] = f"[Kontakt sa sajta] {ime or 'Anonimno'} — {now.strftime('%d.%m.%Y %H:%M')}"
         msg.set_content(body_txt)
         msg.add_alternative(body_html, subtype="html")
+
         if kontakt_tip == "email" and kontakt_val:
             msg["Reply-To"] = kontakt_val
         if kontakt_tip == "phone" and kontakt_val:
@@ -352,13 +372,11 @@ def posalji_poruku():
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
             smtp.login(user, app_pw)
             smtp.send_message(msg)
-
     except Exception as e:
         print(f"Mail error: {e}", flush=True)
         return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
 
     return jsonify(ok=True), 200
-
 
 # -------- Potvrda termina (Flatpickr) --------
 @app.route("/potvrdi_termin", methods=["GET", "POST"])
@@ -407,10 +425,6 @@ def potvrdi_termin():
       <div class="row">
         <label>Datum i vrijeme</label>
         <input id="dt" class="input" name="dt" required placeholder="Izaberite datum i vrijeme" />
-      </div>
-      <div class="row">
-        <label>Napomena (opciono)</label>
-        <textarea class="input" name="napomena" rows="3" placeholder="Dodatna napomena...">{html.escape(ref)}</textarea>
       </div>
       <button class="btn" type="submit">Potvrdi termin</button>
       <div class="muted">Zona vremena: Europe/Podgorica</div>
