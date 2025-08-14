@@ -465,7 +465,7 @@ def potvrdi_termin():
     telefon_norm = normalize_phone(telefon_raw) or telefon_raw
 
     # Sastavi mail (plain + HTML)
-    when_txt = dt_local.strftime("%d.%m.%Y. u %H:%M")
+    when_txt = dt_local.strftime("%d.%m.%Y u %H:%M")
     body_txt = (
         f"POTVRĐEN TERMIN\n\n"
         f"Ime i prezime: {ime or '—'}\n"
