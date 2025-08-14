@@ -71,26 +71,24 @@ def to_int_or_none(x):
         return int(x)
     except (ValueError, TypeError):
         return None
-
 def sat_label(h):
     """
-    Formatira sat koji može biti int (10) ili float (10.5 -> 10:30).
-    Vraća string "HH:MM".
+    Formatira sat:
+    - ako je pun sat -> "HH"
+    - ako ima minute -> "HH:MM"
     """
     try:
         if h is None:
             return ""
-        if isinstance(h, (int, float)):
-            sati = int(h)
-            minuti = int(round((float(h) - sati) * 60))
-            return f"{sati}:{minuti:02d}"
-        # ako je string, pokušaj float
         val = float(h)
         sati = int(val)
         minuti = int(round((val - sati) * 60))
+        if minuti == 0:
+            return str(sati)
         return f"{sati}:{minuti:02d}"
     except Exception:
         return str(h)
+
 
 @app.route("/")
 def index():
