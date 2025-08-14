@@ -377,58 +377,124 @@ def posalji_poruku():
         return jsonify(ok=True, warning=f"CSV sačuvan, ali slanje maila nije uspjelo: {type(e).__name__}"), 200
 
     return jsonify(ok=True), 200
-
 @app.route("/potvrdi_termin", methods=["GET", "POST"])
 def potvrdi_termin():
     if request.method == "GET":
         ime = (request.args.get("ime") or "").strip()
         email = (request.args.get("email") or "").strip()
         telefon = (request.args.get("telefon") or "").strip()
-        ref = (request.args.get("ref") or "").strip()
+        ref = (request.args.get("ref") or "").strip()  # napomena/ref
 
-        # === OVDJE JE TVOJA HTML FORMA ===
+        # baza za iframe
+        iframe_base = "http://localhost:5055/"
+
         html_form = f"""
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>Potvrda termina</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-            <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-        </head>
-        <body style="font-family: Arial, sans-serif;">
-            <h2>Potvrda termina</h2>
-            <form method="post" action="/potvrdi_termin">
-                <label>Ime i prezime:</label><br>
-                <input type="text" name="ime" value="{html.escape(ime)}"><br><br>
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Potvrda termina</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <style>
+    body {{ font-family: system-ui, Arial, sans-serif; background:#f9fafb; color:#111; margin:0; padding:24px; }}
+    .card {{ max-width:620px; margin:0 auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,.06); }}
+    h1 {{ font-size:20px; margin:0 0 12px; }}
+    .row {{ margin-bottom:10px; }}
+    .input {{ width:100%; padding:12px; border:1px solid #d1d5db; border-radius:10px; }}
+    .btn {{ display:inline-block; margin-top:8px; padding:12px 18px; border-radius:10px; border:1px solid #d1d5db; background:#111827; color:#fff; font-weight:700; cursor:pointer; }}
+    .muted {{ color:#6b7280; font-size:12px; }}
+    .frame-wrap {{ margin-top:16px; display:none; }}
+    iframe {{ width:100%; height:420px; border:1px solid #e5e7eb; border-radius:10px; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Potvrda termina</h1>
+    <form id="f" method="POST">
+      <div class="row">
+        <label>Ime i prezime</label>
+        <input class="input" name="ime" value="{html.escape(ime)}" placeholder="Ime i prezime" />
+      </div>
+      <div class="row">
+        <label>E-pošta (opciono)</label>
+        <input class="input" name="email" value="{html.escape(email)}" placeholder="npr. osoba@mail.com" />
+      </div>
+      <div class="row">
+        <label>Telefon (opciono)</label>
+        <input class="input" name="telefon" value="{html.escape(telefon)}" placeholder="+382..." />
+      </div>
+      <div class="row">
+        <label>Datum i vrijeme</label>
+        <input id="dt" class="input" name="dt" required placeholder="Izaberite datum i vrijeme" />
+      </div>
+      <div class="row">
+        <label>Napomena (opciono)</label>
+        <textarea class="input" name="napomena" rows="3" placeholder="Dodatna napomena...">{html.escape(ref)}</textarea>
+      </div>
+      <button class="btn" type="submit">Potvrdi termin</button>
+      <div class="muted">Zona vremena: Europe/Podgorica</div>
+    </form>
 
-                <label>E-mail:</label><br>
-                <input type="email" name="email" value="{html.escape(email)}"><br><br>
+    <!-- LIVE IFRAME (prikazuje se kad se izabere datum/vrijeme) -->
+    <div id="frameWrap" class="frame-wrap">
+      <iframe id="liveFrame" src="about:blank" loading="lazy"></iframe>
+    </div>
+  </div>
 
-                <label>Telefon:</label><br>
-                <input type="text" name="telefon" value="{html.escape(telefon)}"><br><br>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/sr.js"></script>
+  <script>
+    const IFRAME_BASE = {json.dumps(iframe_base)};
+    const form = document.getElementById('f');
+    const dtEl = document.getElementById('dt');
+    const frameWrap = document.getElementById('frameWrap');
+    const liveFrame = document.getElementById('liveFrame');
 
-                <label>Napomena:</label><br>
-                <textarea name="napomena"></textarea><br><br>
+    function buildSrc() {{
+      const fd = new FormData(form);
+      const q = new URLSearchParams();
+      if (fd.get('ime')) q.set('ime', fd.get('ime'));
+      if (fd.get('email')) q.set('email', fd.get('email'));
+      if (fd.get('telefon')) q.set('telefon', fd.get('telefon'));
+      if (fd.get('napomena')) q.set('napomena', fd.get('napomena'));
+      if (fd.get('dt')) q.set('dt', fd.get('dt')); // format: YYYY-MM-DD HH:MM
+      return IFRAME_BASE + "?" + q.toString();
+    }}
 
-                <label>Datum i vrijeme termina:</label><br>
-                <input type="text" id="dt" name="dt"><br><br>
+    function updateFrame() {{
+      const val = dtEl.value.trim();
+      if (!val) {{
+        frameWrap.style.display = 'none';
+        liveFrame.src = 'about:blank';
+        return;
+      }}
+      liveFrame.src = buildSrc();
+      frameWrap.style.display = 'block';
+    }}
 
-                <button type="submit">Potvrdi termin</button>
-            </form>
+    flatpickr("#dt", {{
+      enableTime: true,
+      dateFormat: "Y-m-d H:i",
+      minDate: "today",
+      time_24hr: true,
+      locale: "sr",
+      onChange: updateFrame
+    }});
 
-            <script>
-                flatpickr("#dt", {{
-                    enableTime: true,
-                    dateFormat: "Y-m-d H:i",
-                    time_24hr: true
-                }});
-            </script>
-        </body>
-        </html>
-        """
+    ['ime','email','telefon','napomena'].forEach(name => {{
+      const el = form.querySelector(`[name="{{name}}"]`.replace('{{name}}', name));
+      if (el) el.addEventListener('input', () => {{
+        if (dtEl.value.trim()) updateFrame();
+      }});
+    }});
+  </script>
+</body>
+</html>
+"""
         return html_form
 
-    # === OVDJE JE POST dio (obrada forme i slanje e-maila) ===
+    # POST: obradi formu i pošalji e-mail
     ime = (request.form.get("ime") or "").strip()
     email = (request.form.get("email") or "").strip()
     telefon_raw = (request.form.get("telefon") or "").strip()
