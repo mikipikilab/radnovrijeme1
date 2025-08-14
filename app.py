@@ -103,26 +103,51 @@ def is_email(s: str) -> bool:
         return False
     return "@" in s and "." in s.split("@")[-1]
 
-def normalize_phone(raw: str) -> str | None:
+def normalize_phone(raw):
+    """
+    Normalizuje telefon:
+    - dozvoljava cifre, razmake, +, (, ), -
+    - 00xx pretvara u +xx
+    - broj koji počinje nulom: ako je DEFAULT_COUNTRY_CODE postavljen -> doda se pozivni,
+      u suprotnom ostavlja se nacionalni format sa vodećom nulom
+    - vraća None ako nema dovoljno cifara
+    """
     if not raw:
         return None
+
     # zadrži samo + i cifre
     s = re.sub(r"[^\d+]", "", raw)
 
-    # saniraj višak '+'
+    # ako je sve obrisano
+    if not s:
+        return None
+
+    # 00xx -> +xx
+    if s.startswith("00"):
+        s = "+" + s[2:]
+
+    # saniraj višak '+' (dozvoljen je samo na početku)
     if s.count("+") > 1:
         s = re.sub(r"\++", "+", s)
     if "+" in s[1:]:
         s = s[0] + s[1:].replace("+", "")
 
-    # dodaj pozivni ako počinje nulom i nema '+'
-    if s and s[0] == "0" and not s.startswith("+") and DEFAULT_COUNTRY_CODE:
-        s = DEFAULT_COUNTRY_CODE + s.lstrip("0")
+    # ako počinje nulom i nema '+'
+    if s.startswith("0") and not s.startswith("+"):
+        if DEFAULT_COUNTRY_CODE:
+            # npr. "067123456" -> "+38267123456"
+            s = DEFAULT_COUNTRY_CODE + s.lstrip("0")
+        else:
+            # ostavi nacionalni format "067123456"
+            pass
 
-    digits = re.sub(r"\D", "", s)
+    # minimalno 7 cifara
+    digits = re.sub(r"\D", "", s if s.startswith("+") else s)
     if len(digits) < 7:
         return None
+
     return s
+
 
 def classify_kontakt(k: str) -> tuple[str, str]:
     """
