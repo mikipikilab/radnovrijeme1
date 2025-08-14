@@ -252,7 +252,6 @@ def obrisi(datum):
 
 @app.route("/posalji_poruku", methods=["POST"])
 def posalji_poruku():
-    # --- Ulazni podaci ---
     data = request.get_json(force=True, silent=True) or {}
     ime     = (data.get("ime") or "").strip()
     kontakt = (data.get("kontakt") or "").strip()
@@ -262,17 +261,8 @@ def posalji_poruku():
         return jsonify(ok=False, error="Poruka je obavezna."), 400
 
     now = now_podgorica()
-
-    # --- Klasifikacija kontakta (email / phone / text) ---
     kontakt_tip, kontakt_val = classify_kontakt(kontakt)
 
-    # kome stiže poruka u startu (inbox ordinacije)
-    mail_to = "dentalabplaner@gmail.com"
-
-    # e-mail na koji će ići BRZI ODGOVORI (ako imamo korisnikov e-mail, odgovaramo njemu)
-    quick_reply_to = kontakt_val if kontakt_tip == "email" else mail_to
-
-    # --- Kontakt linije (plain + HTML) ---
     if kontakt_tip == "email":
         kontakt_linija_txt = f"E-mail: {kontakt_val}"
         kontakt_link_html  = f'<a href="mailto:{html.escape(kontakt_val)}" style="color:#2563eb;text-decoration:none;">{html.escape(kontakt_val)}</a>'
@@ -284,7 +274,6 @@ def posalji_poruku():
         kontakt_linija_txt = f"Kontakt: {kontakt_val or '—'}"
         kontakt_link_html  = html.escape(kontakt_val or "—")
 
-    # --- PLAIN tekst tijelo (fallback) ---
     body_txt = (
         f"Ime i prezime: {ime or '—'}\n"
         f"{kontakt_linija_txt}\n\n"
@@ -293,80 +282,44 @@ def posalji_poruku():
         f"IP: {request.remote_addr or ''}\n"
     )
 
-    # --- Brzi auto-odgovori (mailto šabloni) ---
-    quoted = f"> {poruka.replace('\\n', '\\n> ')}"  # prost quote originala
-    quick_templates = [
-        (
-            "Hvala",
-            f"Hvala na poruci – {ime or 'poštovani/na'}",
-            f"Poštovani/na {ime or ''},\n\nhvala Vam na javljanju. Uskoro ćemo se povratno javiti.\n\n{quoted}\n\nSrdačno,\nDENTALAB"
-        ),
-        (
-            "Prosleđeno",
-            f"Vaša poruka je prosleđena – {ime or 'poštovani/na'}",
-            f"Poštovani/na {ime or ''},\n\nvašu poruku smo prosledili nadležnom timu/doktoru. Javićemo Vam se čim dobijemo povratnu informaciju.\n\n{quoted}\n\nSrdačno,\nDENTALAB"
-        ),
-        (
-            "Potvrdi termin",
-            f"Potvrda termina – {ime or 'pacijent'}",
-            f"Poštovani/na {ime or ''},\n\npotvrđujemo termin.\nDatum: [upišite datum]\nVrijeme: [upišite vrijeme]\nLokacija: [upišite lokaciju]\n\n{quoted}\n\nSrdačno,\nDENTALAB"
-        ),
-        (
-            "Nazvaćemo Vas",
-            f"Poziv u najskorije vrijeme – {ime or 'poštovani/na'}",
-            f"Poštovani/na {ime or ''},\n\nkontaktiraćemo Vas telefonom u najskorije vrijeme.\n\n{quoted}\n\nSrdačno,\nDENTALAB"
-        ),
-        (
-            "Odloženo",
-            f"Dogovor za drugi termin – {ime or 'poštovani/na'}",
-            f"Poštovani/na {ime or ''},\n\nhvala na poruci. Molimo da usaglasimo novi termin.\nPredlog: [upišite termin]\n\n{quoted}\n\nSrdačno,\nDENTALAB"
-        ),
-    ]
-
-    small_btn = (
-        "display:inline-block;background:#f3f4f6;color:#111827;padding:10px 12px;"
-        "border-radius:8px;text-decoration:none;font-weight:700;border:1px solid #e5e7eb;"
+    # Dugme Potvrdi termin (prefill)
+    url_base = request.url_root.rstrip("/")
+    confirm_qs = urllib.parse.urlencode({
+        "ime": ime or "",
+        "email": kontakt_val if (kontakt_tip == "email") else "",
+        "telefon": kontakt_val if (kontakt_tip == "phone") else "",
+        "ref": f"Ref: poruka sa sajta {now.strftime('%d.%m.%Y %H:%M')}"
+    })
+    confirm_url = f"{url_base}/potvrdi_termin?{confirm_qs}"
+    confirm_btn_html = (
+        f'<a href="{html.escape(confirm_url)}" '
+        'style="display:inline-block;background:#111827;color:#fff;'
+        'padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700;">'
+        'Potvrdi termin</a>'
     )
 
-    quick_buttons_html = "".join(
-        f'<td style="padding:6px 6px;"><a href="{html.escape(build_mailto(quick_reply_to, subj, body))}" style="{small_btn}">{html.escape(label)}</a></td>'
-        for (label, subj, body) in quick_templates
-    )
-
-    # --- HTML tijelo (sa brzim odgovorima) ---
     body_html = f"""
-    <html>
-    <body style="margin:0;padding:0;background:#ffffff;">
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#ffffff;">
-        <tr><td align="center">
-          <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;width:100%;font-family:Arial,Helvetica,sans-serif;color:#111827;">
-            <tr><td style="padding:20px 20px 10px;">
-              <h2 style="margin:0 0 8px 0;font-size:20px;">Nova poruka sa sajta</h2>
-              <p style="margin:4px 0;"><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
-              <p style="margin:4px 0;"><b>Kontakt:</b> {kontakt_link_html}</p>
-              <p style="margin:12px 0;"><b>Poruka:</b><br>{html.escape(poruka).replace('\\n','<br>')}</p>
-              <p style="margin:12px 0;color:#6b7280;font-size:12px;">
-                Vrijeme: {html.escape(now.isoformat())}<br>
-                IP: {html.escape(request.remote_addr or '')}
-              </p>
-            </td></tr>
-
-            <tr><td style="padding:0 10px 20px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" align="center">
-                <tr>{quick_buttons_html}</tr>
-              </table>
-              <p style="text-align:center;margin:10px 0 0;color:#6b7280;font-size:12px;">
-                Brzi odgovori (Gmail/Outlook kompatibilno)
-              </p>
-            </td></tr>
-          </table>
-        </td></tr>
-      </table>
-    </body>
-    </html>
+    <html><body style="font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111;">
+      <p><b>Ime i prezime:</b> {html.escape(ime or '—')}</p>
+      <p><b>Kontakt:</b> {kontakt_link_html}</p>
+      <p><b>Poruka:</b><br>{html.escape(poruka).replace('\\n','<br>')}</p>
+      <hr style="border:none;border-top:1px solid #ddd;margin:12px 0">
+      <p style="color:#555;">
+        Vrijeme: {html.escape(now.isoformat())}<br>
+        IP: {html.escape(request.remote_addr or '')}
+      </p>
+      <div style="margin:20px 0;text-align:center;">
+        {confirm_btn_html}
+      </div>
+      <p style="margin-top:20px;color:#555;">Brzi odgovori:</p>
+      <ul style="list-style:none;padding:0;">
+        <li><a href="mailto:{html.escape(kontakt_val)}?subject=Hvala&body=Hvala na javljanju" style="color:#2563eb;">Hvala</a></li>
+        <li><a href="mailto:{html.escape(kontakt_val)}?subject=Prosleđujem&body=Prosleđujem Vašu poruku" style="color:#2563eb;">Prosleđujem</a></li>
+      </ul>
+    </body></html>
     """
 
-    # --- CSV arhiva (best-effort) ---
+    # CSV zapis
     try:
         newfile = not os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
@@ -377,7 +330,6 @@ def posalji_poruku():
     except Exception as e:
         print(f"CSV write error: {e}", flush=True)
 
-    # --- Slanje e-maila (ako je konfigurisan) ---
     user   = os.environ.get("GMAIL_USER")
     app_pw = (os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "")
 
@@ -387,16 +339,12 @@ def posalji_poruku():
     try:
         msg = EmailMessage()
         msg["From"] = formataddr(("PORUKA SA SAJTA", user))
-        msg["To"] = mail_to
+        msg["To"] = "dentalabplaner@gmail.com"
         msg["Subject"] = f"[Kontakt sa sajta] {ime or 'Anonimno'} — {now.strftime('%d.%m.%Y %H:%M')}"
         msg.set_content(body_txt)
         msg.add_alternative(body_html, subtype="html")
-
-        # Reply-To ako je korisnikov e-mail dostavljen
         if kontakt_tip == "email" and kontakt_val:
             msg["Reply-To"] = kontakt_val
-
-        # (opciono) telefon u custom headeru
         if kontakt_tip == "phone" and kontakt_val:
             msg["X-Contact-Phone"] = kontakt_val
 
@@ -411,22 +359,6 @@ def posalji_poruku():
 
     return jsonify(ok=True), 200
 
-# --- Pomoćne rute za CSV (opciono) ---
-@app.get("/csv_debug")
-def csv_debug():
-    exists = os.path.exists(CSV_PATH)
-    size = os.path.getsize(CSV_PATH) if exists else 0
-    return jsonify(path=CSV_PATH, exists=exists, size=size)
-
-@app.get("/poruke.csv")
-def download_csv():
-    if not os.path.exists(CSV_PATH):
-        abort(404)
-    return send_file(CSV_PATH, as_attachment=True, download_name="poruke.csv")
-
-@app.get("/ping")
-def ping():
-    return "ok", 200
 
 # -------- Potvrda termina (Flatpickr) --------
 @app.route("/potvrdi_termin", methods=["GET", "POST"])
