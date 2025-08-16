@@ -1,19 +1,25 @@
 services:
   - type: web
-    name: dentalab-poruke
+    name: dentalab-poruke        # ime servisa kako će se prikazati na Render-u
     env: python
-    region: frankfurt
-    plan: starter
+    region: frankfurt            # možeš promijeniti region ako želiš
+    plan: free                   # ili starter ako koristiš plaćeni plan
+
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 120 --preload
+
     envVars:
       - key: GMAIL_USER
-        sync: false      # unijećeš poslije u dashboardu
+        sync: false              # vrijednost unosiš ručno u Render dashboardu
       - key: GMAIL_APP_PASSWORD
-        sync: false      # unijećeš poslije u dashboardu (bez razmaka)
+        sync: false              # isto, obavezno bez razmaka u app password-u
       - key: CSV_PATH
-        value: /data/poruke.csv
+        value: /data/poruke.csv  # fajl za poruke će se čuvati na disku
+
     disk:
       name: data
       mountPath: /data
-      sizeGB: 1
+      sizeGB: 1                  # dovoljno za CSV logove
+
+    healthCheckPath: /healthz    # Render će sam pingovati ovu rutu
+    healthCheckTimeoutSeconds: 30
