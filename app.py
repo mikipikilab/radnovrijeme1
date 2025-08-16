@@ -646,9 +646,7 @@ flatpickr("#dt", {{
         return "Greška pri slanju e-pošte.", 500
 
     return "Termin je potvrđen. Hvala!", 200
-@app.get("/healthz")
-def healthz():
-    return "ok", 200
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5098))
