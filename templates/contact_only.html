@@ -3,44 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kontakt forma</title>
+  <title>Kontakt</title>
+  <meta name="robots" content="noindex,nofollow" />
   <style>
-    body {
-      background: #000;
-      color: #fff;
-      font-family: system-ui, Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-    }
-    .contact-box {
-      max-width: 400px;
-      margin: 0 auto;
-    }
-    .input, .textarea {
-      width: 100%;
-      padding: 10px;
-      margin: 6px 0;
-      border-radius: 6px;
-      border: 1px solid #333;
-      background: #111;
-      color: #fff;
-    }
-    .btn {
-      background: #4ade80;
-      color: #000;
-      border: none;
-      padding: 10px 14px;
-      border-radius: 6px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 8px;
-    }
-    #msgStatus { margin-top:10px; font-size:14px; }
+    body{background:#000;color:#fff;font-family:system-ui,Arial,sans-serif;margin:0;padding:16px}
+    .contact-box{max-width:420px;margin:0 auto}
+    .input,.textarea{width:100%;padding:10px;margin:6px 0;border:1px solid #333;border-radius:10px;background:#111;color:#fff}
+    .btn{background:#4ade80;color:#000;border:none;padding:10px 14px;border-radius:10px;font-weight:800;cursor:pointer}
+    #msgStatus{margin-top:8px;font-size:14px}
   </style>
 </head>
 <body>
   <div class="contact-box">
-    <div style="margin-bottom:8px;font-weight:700; color:white;">POŠALJITE PORUKU</div>
+    <div style="margin-bottom:8px;font-weight:700;color:#fff">POŠALJITE PORUKU</div>
     <form id="msgForm">
       <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
       <input class="input" type="text" name="kontakt" placeholder="Kontakt (telefon ili e-pošta, opcionalno)" />
@@ -51,14 +26,32 @@
   </div>
 
   <script>
-    // Ovdje ide isti JS koji koristiš za slanje poruke na server
-    document.getElementById("msgForm").addEventListener("submit", async (e)=>{
-      e.preventDefault();
-      document.getElementById("msgStatus").textContent = "Šaljem...";
-      // ovdje napravi fetch ka tvojoj PHP/Python ruti
-      await new Promise(r=>setTimeout(r,1000));
-      document.getElementById("msgStatus").textContent = "Poruka poslata!";
-    });
+  const form = document.getElementById('msgForm');
+  const statusEl = document.getElementById('msgStatus');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    statusEl.textContent = 'Šaljem...';
+    const data = {
+      ime: form.ime.value.trim(),
+      kontakt: (form.kontakt?.value || '').trim(),
+      poruka: form.poruka.value.trim()
+    };
+    if (!data.poruka) { statusEl.textContent = 'Poruka je obavezna.'; return; }
+    try {
+      const res = await fetch('/posalji_poruku', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
+      });
+      const out = await res.json();
+      if (out.ok) {
+        if (out.tel_uri) { statusEl.textContent='Prepoznat je broj — poziv...'; setTimeout(()=>location.href=out.tel_uri,150); form.reset(); return; }
+        if (out.email)   { statusEl.textContent='Otvaram e-poštu...'; setTimeout(()=>location.href='mailto:'+out.email,150); form.reset(); return; }
+        statusEl.textContent = out.warning ? ('Poslato. ⚠ ' + out.warning) : 'Poruka poslata. Hvala!';
+        form.reset();
+      } else {
+        statusEl.textContent = out.error || 'Greška pri slanju.';
+      }
+    } catch { statusEl.textContent = 'Greška u mreži. Pokušajte ponovo.'; }
+  });
   </script>
 </body>
 </html>
