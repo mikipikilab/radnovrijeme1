@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kontakt forma</title>
+  <style>
+    body {
+      background: #000;
+      color: #fff;
+      font-family: system-ui, Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    .contact-box {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    .input, .textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #111;
+      color: #fff;
+    }
+    .btn {
+      background: #4ade80;
+      color: #000;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    #msgStatus { margin-top:10px; font-size:14px; }
+  </style>
+</head>
+<body>
+  <div class="contact-box">
+    <div style="margin-bottom:8px;font-weight:700; color:white;">POŠALJITE PORUKU</div>
+    <form id="msgForm">
+      <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
+      <input class="input" type="text" name="kontakt" placeholder="Kontakt (telefon ili e-pošta, opcionalno)" />
+      <textarea class="textarea" name="poruka" placeholder="Vaša poruka" rows="3" required></textarea>
+      <button class="btn" type="submit">Pošalji poruku</button>
+      <div id="msgStatus"></div>
+    </form>
+  </div>
+
+  <script>
+    // Ovdje ide isti JS koji koristiš za slanje poruke na server
+    document.getElementById("msgForm").addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      document.getElementById("msgStatus").textContent = "Šaljem...";
+      // ovdje napravi fetch ka tvojoj PHP/Python ruti
+      await new Promise(r=>setTimeout(r,1000));
+      document.getElementById("msgStatus").textContent = "Poruka poslata!";
+    });
+  </script>
+</body>
+</html>
