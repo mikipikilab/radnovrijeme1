@@ -7,9 +7,26 @@
   <meta name="robots" content="noindex,nofollow" />
   <style>
     body{background:#000;color:#fff;font-family:system-ui,Arial,sans-serif;margin:0;padding:16px}
-    .contact-box{max-width:420px;margin:0 auto}
-    .input,.textarea{width:100%;padding:10px;margin:6px 0;border:1px solid #333;border-radius:10px;background:#111;color:#fff}
-    .btn{background:#4ade80;color:#000;border:none;padding:10px 14px;border-radius:10px;font-weight:800;cursor:pointer}
+    .contact-box{
+      width:100%;
+      max-width:none;       /* uklonjeno ograničenje */
+      padding:10px;         /* traženi padding */
+      box-sizing:border-box;/* da padding stane u 100% širine */
+      margin:0 auto;
+    }
+    .input,.textarea{
+      width:100%;
+      padding:10px;
+      margin:6px 0;
+      border:1px solid #333;
+      border-radius:10px;
+      background:#111;
+      color:#fff
+    }
+    .btn{
+      background:#4ade80;color:#000;border:none;
+      padding:10px 14px;border-radius:10px;font-weight:800;cursor:pointer
+    }
     #msgStatus{margin-top:8px;font-size:14px}
   </style>
 </head>
