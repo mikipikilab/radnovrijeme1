@@ -31,16 +31,24 @@
   </style>
 </head>
 <body>
-  <div class="contact-box">
-    <div style="margin-bottom:8px;font-weight:700;color:#fff">POŠALJITE PORUKU</div>
-    <form id="msgForm">
-      <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
-      <input class="input" type="text" name="kontakt" placeholder="Kontakt (telefon ili e-pošta, opcionalno)" />
-      <textarea class="textarea" name="poruka" placeholder="Vaša poruka" rows="3" required></textarea>
-      <button class="btn" type="submit">Pošalji poruku</button>
-      <div id="msgStatus"></div>
-    </form>
+<div class="contact-box">
+  <div style="margin-bottom:8px;text-align:center;font-weight:700;color:#fff">
+    POŠALJITE PORUKU
   </div>
+  <form id="msgForm">
+    <input class="input" type="text" name="ime" placeholder="Ime i prezime (opciono)" />
+    <input class="input" type="text" name="kontakt" placeholder="Kontakt (telefon ili e-pošta, opcionalno)" />
+    <textarea class="textarea" name="poruka" placeholder="Vaša poruka" rows="3" required></textarea>
+    
+    <button class="btn" type="submit" 
+            style="display:block;margin:10px auto;">
+     POŠALJI
+    </button>
+    
+    <div id="msgStatus" style="text-align:center;"></div>
+  </form>
+</div>
+
 
   <script>
   const form = document.getElementById('msgForm');
@@ -72,3 +80,4 @@
   </script>
 </body>
 </html>
+
