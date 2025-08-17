@@ -9,6 +9,15 @@ from email.message import EmailMessage
 
 # APP MORA BITI DEFINISAN PRIJE SVIH @app.route
 app = Flask(__name__, template_folder="templates")
+# --- contact_only prikaz (template u templates/contact_only.html) ---
+@app.get("/contact_only")
+def contact_only():
+    return render_template("contact_only.html")
+
+# (opciono) ista stvar ali sa .html u URL-u
+@app.get("/contact_only.html")
+def contact_only_html():
+    return render_template("contact_only.html")
 
 # ---- ICS helperi ----
 def _ics_ts(dt_aware):
